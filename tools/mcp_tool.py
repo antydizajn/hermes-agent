@@ -3801,6 +3801,8 @@ def shutdown_mcp_servers():
             try:
                 future.result(timeout=15)
             except BaseException as exc:
+                # BaseException so a second Ctrl+C during the 15s wait
+                # doesn't escape and skip _stop_mcp_loop() (upstream e9529578d).
                 logger.debug("Error during MCP shutdown: %s", exc)
 
     _stop_mcp_loop()

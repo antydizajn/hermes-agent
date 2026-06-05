@@ -109,11 +109,67 @@ def format_model_for_display(model_name: str) -> str:
     """
     if not model_name:
         return model_name
+    raw = model_name
     for prefix in _OPAQUE_MODEL_PREFIXES:
         if model_name.startswith(prefix):
-            tail = model_name[len(prefix):]
-            return tail if tail else model_name
-    return model_name
+            raw = model_name[len(prefix):]
+            break
+
+    # Pretty-print Palantir Foundry slug → vendor brand name.
+    # Patterns covered: anthropic-claude-4-8-opus, gpt-5-4, gpt-5-4-mini,
+    # gemini-3-1-pro, gemini-3-5-flash, grok-4-2-0
+    pretty = _palantir_slug_to_brand(raw)
+    return pretty if pretty else raw
+
+
+def _palantir_slug_to_brand(slug: str) -> str | None:
+    """Convert Palantir RID tail to vendor brand name.
+
+    anthropic-claude-4-8-opus → 'Claude Opus 4.8'
+    gpt-5-4                   → 'GPT-5.4'
+    gpt-5-4-mini              → 'GPT-5.4 mini'
+    gemini-3-1-pro            → 'Gemini 3.1 Pro'
+    gemini-3-5-flash          → 'Gemini 3.5 Flash'
+
+    Returns None when the slug does not match a known pattern.
+    """
+    if not slug:
+        return None
+    import re as _re
+    s = slug.lower()
+
+    # anthropic-claude-{maj}-{min}-{variant}
+    m = _re.match(r"^anthropic-claude-(\d+)-(\d+)-(opus|sonnet|haiku)$", s)
+    if m:
+        major, minor, variant = m.groups()
+        return f"Claude {variant.capitalize()} {major}.{minor}"
+
+    # gpt-{maj}-{min}[-suffix]   e.g. gpt-5-4, gpt-5-4-mini, gpt-5-5
+    m = _re.match(r"^gpt-(\d+)-(\d+)(?:-(.+))?$", s)
+    if m:
+        major, minor, suffix = m.groups()
+        base = f"GPT-{major}.{minor}"
+        return f"{base} {suffix}" if suffix else base
+
+    # gemini-{maj}-{min}-{variant}  e.g. gemini-3-1-pro, gemini-3-5-flash
+    m = _re.match(r"^gemini-(\d+)-(\d+)-(pro|flash|ultra|nano)$", s)
+    if m:
+        major, minor, variant = m.groups()
+        return f"Gemini {major}.{minor} {variant.capitalize()}"
+
+    # grok-{maj}[-{min}[-{patch}]][-suffix]  e.g. grok-4-2-0, grok-4-1-fast
+    m = _re.match(r"^grok-(\d+)(?:-(\d+))?(?:-(\d+))?(?:-(.+))?$", s)
+    if m:
+        major, minor, patch, suffix = m.groups()
+        ver = major
+        if minor:
+            ver += f".{minor}"
+        if patch:
+            ver += f".{patch}"
+        base = f"Grok {ver}"
+        return f"{base} {suffix}" if suffix else base
+
+    return None
 
 
 # ---------------------------------------------------------------------------

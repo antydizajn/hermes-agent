@@ -1021,6 +1021,9 @@ def _run_cleanup():
         from tools.mcp_tool import shutdown_mcp_servers
         shutdown_mcp_servers()
     except BaseException:
+        # Use BaseException so a second Ctrl+C during MCP shutdown
+        # doesn't escape and bypass _print_exit_summary() in the caller's
+        # finally block (upstream commit 1bcfe9c58).
         pass
     # Close cached auxiliary LLM clients (sync + async) so that
     # AsyncHttpxClientWrapper.__del__ doesn't fire on a closed event loop
@@ -8024,12 +8027,22 @@ class HermesCLI:
         mi = result.model_info
         try:
             from hermes_cli.model_switch import resolve_display_context_length
+            # Re-read custom_providers from live config so per-model
+            # context_length overrides (e.g. Palantir Foundry 1M cap)
+            # are honored when /model switches between providers.
+            _swctx_cps = None
+            try:
+                from hermes_cli.config import load_config, get_compatible_custom_providers
+                _swctx_cps = get_compatible_custom_providers(load_config())
+            except Exception:
+                _swctx_cps = None
             ctx = resolve_display_context_length(
                 result.new_model,
                 result.target_provider,
                 base_url=result.base_url or self.base_url or "",
                 api_key=result.api_key or self.api_key or "",
                 model_info=mi,
+                custom_providers=_swctx_cps,
                 config_context_length=getattr(self.agent, "_config_context_length", None) if self.agent else None,
             )
             if ctx:
@@ -8274,12 +8287,21 @@ class HermesCLI:
         # (e.g. gpt-5.5 is 1.05M on openai but 272K on Codex OAuth).
         mi = result.model_info
         from hermes_cli.model_switch import resolve_display_context_length
+        # Re-read custom_providers from live config for per-model
+        # context_length overrides (e.g. Palantir Foundry 1M cap).
+        _swctx_cps2 = None
+        try:
+            from hermes_cli.config import load_config, get_compatible_custom_providers
+            _swctx_cps2 = get_compatible_custom_providers(load_config())
+        except Exception:
+            _swctx_cps2 = None
         ctx = resolve_display_context_length(
             result.new_model,
             result.target_provider,
             base_url=result.base_url or self.base_url or "",
             api_key=result.api_key or self.api_key or "",
             model_info=mi,
+            custom_providers=_swctx_cps2,
             config_context_length=getattr(self.agent, "_config_context_length", None) if self.agent else None,
         )
         if ctx:
@@ -14906,7 +14928,11 @@ class HermesCLI:
                 provider_data = state.get("provider_data") or {}
                 model_list = state.get("model_list") or []
                 title = f"⚙ Model Picker — {provider_data.get('name', provider_data.get('slug', 'Provider'))}"
-                choices = list(model_list) + ["← Back", "Cancel"]
+                # Show friendly aliases (e.g. ``opus-4.8``) instead of raw
+                # Palantir RIDs / long catalog IDs. Selection still indexes
+                # ``model_list`` (raw IDs) so the switch passes the real model.
+                _display_models = [_reverse_alias_for_display(m) for m in model_list]
+                choices = list(_display_models) + ["← Back", "Cancel"]
                 if model_list:
                     hint = f"Select a model ({len(model_list)} available)"
                 else:
@@ -15654,8 +15680,17 @@ class HermesCLI:
                     )
                 except Exception:
                     pass
-            _run_cleanup()
-            self._print_exit_summary()
+            # Belt-and-suspenders: even if _run_cleanup() escapes with
+            # KeyboardInterrupt/SystemExit (e.g. user mashes Ctrl+C during
+            # MCP shutdown's 15s wait), the user still sees how to resume.
+            try:
+                _run_cleanup()
+            except BaseException:
+                pass
+            try:
+                self._print_exit_summary()
+            except BaseException:
+                pass
 
         # Deferred relaunch: /update sets _pending_relaunch so the exec
         # happens here — after prompt_toolkit has exited and fully restored
