@@ -1338,10 +1338,35 @@ def init_agent(
     agent._aux_compression_context_length_config = _aux_context_config
 
     # Read explicit model output-token override from config when the
-    # caller did not pass one directly.
+    # caller did not pass one directly.  Prefer the active provider's
+    # per-model ``max_output_tokens`` entry, then fall back to legacy
+    # ``model.max_tokens``.  Palantir Foundry exposes Google/Anthropic/OpenAI
+    # provider-compatible endpoints and the configured model RID is the only
+    # reliable place to know the output cap for opaque internal model names.
     _model_cfg = _agent_cfg.get("model", {})
     if agent.max_tokens is None and isinstance(_model_cfg, dict):
-        _config_max_tokens = _model_cfg.get("max_tokens")
+        _provider_model_max_tokens = None
+        try:
+            _provider_key = str(_model_cfg.get("provider") or "").strip()
+            _providers_cfg = _agent_cfg.get("providers", {})
+            if _provider_key and isinstance(_providers_cfg, dict):
+                _provider_entry = _providers_cfg.get(_provider_key, {})
+                if isinstance(_provider_entry, dict):
+                    _provider_models = _provider_entry.get("models", {})
+                    if isinstance(_provider_models, dict):
+                        _active_model_cfg = _provider_models.get(agent.model, {})
+                        if isinstance(_active_model_cfg, dict):
+                            _provider_model_max_tokens = (
+                                _active_model_cfg.get("max_output_tokens")
+                                or _active_model_cfg.get("max_tokens")
+                            )
+        except Exception:
+            _provider_model_max_tokens = None
+        _config_max_tokens = (
+            _provider_model_max_tokens
+            if _provider_model_max_tokens is not None
+            else _model_cfg.get("max_tokens")
+        )
         if _config_max_tokens is not None:
             try:
                 if isinstance(_config_max_tokens, bool):

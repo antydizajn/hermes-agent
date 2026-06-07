@@ -33,6 +33,7 @@ from typing import Any, Dict, List, Optional
 
 from hermes_cli.timeouts import get_provider_request_timeout
 from agent.prompt_builder import format_steer_marker
+from hermes_cli.config import get_compatible_custom_providers
 from agent.tool_dispatch_helpers import _trajectory_normalize_msg, make_tool_result_message
 from agent.trajectory import convert_scratchpad_to_think
 from agent.credential_pool import STATUS_EXHAUSTED
@@ -1524,19 +1525,41 @@ def switch_model(agent, new_model, new_provider, api_key='', base_url='', api_mo
     # ── LM Studio: preload before probing context length ──
     agent._ensure_lmstudio_runtime_loaded()
 
+    # /model switches must refresh output-token caps too. Startup reads
+    # providers.<key>.models.<model>.max_output_tokens in agent_init.py;
+    # mirror that here so Palantir Gemini/Claude/GPT RIDs do not inherit
+    # a tiny or stale max_tokens value from the previous runtime.
+    _sm_custom_providers = None
+    try:
+        from hermes_cli.config import load_config
+        _sm_cfg = load_config()
+        _sm_custom_providers = get_compatible_custom_providers(_sm_cfg)
+    except Exception:
+        _sm_cfg = {}
+        _sm_custom_providers = None
+    try:
+        _provider_entry = {}
+        if isinstance(_sm_cfg, dict):
+            _providers_cfg = _sm_cfg.get("providers", {})
+            if isinstance(_providers_cfg, dict):
+                _provider_entry = _providers_cfg.get(agent.provider, {}) or {}
+        _model_cfg = {}
+        if isinstance(_provider_entry, dict):
+            _models_cfg = _provider_entry.get("models", {})
+            if isinstance(_models_cfg, dict):
+                _model_cfg = _models_cfg.get(agent.model, {}) or {}
+        if isinstance(_model_cfg, dict):
+            _raw_max = _model_cfg.get("max_output_tokens") or _model_cfg.get("max_tokens")
+            if _raw_max is not None and not isinstance(_raw_max, bool):
+                _parsed_max = int(_raw_max)
+                if _parsed_max > 0:
+                    agent.max_tokens = _parsed_max
+    except Exception:
+        pass
+
     # ── Update context compressor ──
     if hasattr(agent, "context_compressor") and agent.context_compressor:
         from agent.model_metadata import get_model_context_length
-        # Re-read custom_providers from live config so per-model
-        # context_length overrides are honored when switching to a
-        # custom provider mid-session (closes #15779).
-        _sm_custom_providers = None
-        try:
-            from hermes_cli.config import load_config, get_compatible_custom_providers
-            _sm_cfg = load_config()
-            _sm_custom_providers = get_compatible_custom_providers(_sm_cfg)
-        except Exception:
-            _sm_custom_providers = None
         # ``agent.api_key`` may be a callable (Azure Foundry Entra ID
         # token provider). ``get_model_context_length`` expects a
         # string for its live-probe paths; for Foundry the context

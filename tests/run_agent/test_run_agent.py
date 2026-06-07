@@ -909,6 +909,40 @@ class TestInit:
 
         assert a.max_tokens == 8192
 
+    def test_provider_model_max_output_tokens_from_providers_dict(self):
+        """providers.<key>.models.<model>.max_output_tokens populates request cap."""
+        model = "ri.language-model-service..language-model.gemini-3-5-flash"
+        with (
+            patch("run_agent.get_tool_definitions", return_value=_make_tool_defs("terminal")),
+            patch("run_agent.check_toolset_requirements", return_value={}),
+            patch("run_agent.OpenAI"),
+            patch(
+                "hermes_cli.config.load_config",
+                return_value={
+                    "model": {"provider": "palantir-gemini"},
+                    "providers": {
+                        "palantir-gemini": {
+                            "api": "https://example.palantirfoundry.co.uk/api/v2/llm/proxy/google/v1",
+                            "models": {model: {"max_output_tokens": 65535}},
+                        }
+                    },
+                },
+            ),
+        ):
+            a = AIAgent(
+                api_key="test-k...7890",
+                provider="palantir-gemini",
+                model=model,
+                base_url="https://example.palantirfoundry.co.uk/api/v2/llm/proxy/google/v1",
+                quiet_mode=True,
+                skip_context_files=True,
+                skip_memory=True,
+            )
+            kwargs = a._build_api_kwargs([{"role": "user", "content": "Hi"}])
+
+        assert a.max_tokens == 65535
+        assert kwargs["max_tokens"] == 65535
+
     def test_prompt_caching_cache_ttl_invalid_falls_back(self):
         """Non-Anthropic TTL values keep default 5m without raising."""
         with (

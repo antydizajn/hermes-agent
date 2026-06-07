@@ -350,3 +350,20 @@ def test_explicit_max_tokens_is_respected():
 
     req = build_gemini_request(messages=[{"role": "user", "content": "hi"}], max_tokens=4096)
     assert req["generationConfig"]["maxOutputTokens"] == 4096
+
+
+def test_build_native_request_clamps_palantir_gemini_rid_thinking_level():
+    from agent.gemini_native_adapter import build_gemini_request
+
+    request = build_gemini_request(
+        messages=[{"role": "user", "content": "Hello"}],
+        thinking_config={"includeThoughts": True, "thinkingLevel": "xhigh"},
+        model="ri.language-model-service..language-model.gemini-3-5-flash",
+        max_tokens=65535,
+    )
+
+    assert request["generationConfig"]["maxOutputTokens"] == 65535
+    assert request["generationConfig"]["thinkingConfig"] == {
+        "includeThoughts": True,
+        "thinkingLevel": "high",
+    }

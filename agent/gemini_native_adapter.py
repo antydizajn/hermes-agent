@@ -389,9 +389,23 @@ def _translate_tool_choice_to_gemini(tool_choice: Any) -> Optional[Dict[str, Any
     return None
 
 
-def _normalize_thinking_config(config: Any) -> Optional[Dict[str, Any]]:
+def _normalize_gemini_model_name(model: str) -> str:
+    """Return the provider-native Gemini slug from catalog/proxy model IDs."""
+    normalized_model = (model or "").strip().lower()
+    if normalized_model.startswith("google/"):
+        normalized_model = normalized_model.split("/", 1)[1]
+    opaque_prefix = "ri.language-model-service..language-model."
+    if normalized_model.startswith(opaque_prefix):
+        normalized_model = normalized_model[len(opaque_prefix):]
+    if normalized_model.startswith("google-gemini-"):
+        normalized_model = normalized_model[len("google-"):]
+    return normalized_model
+
+
+def _normalize_thinking_config(config: Any, *, model: str = "") -> Optional[Dict[str, Any]]:
     if not isinstance(config, dict) or not config:
         return None
+    normalized_model = _normalize_gemini_model_name(model)
     budget = config.get("thinkingBudget", config.get("thinking_budget"))
     include = config.get("includeThoughts", config.get("include_thoughts"))
     level = config.get("thinkingLevel", config.get("thinking_level"))
@@ -401,7 +415,13 @@ def _normalize_thinking_config(config: Any) -> Optional[Dict[str, Any]]:
     if isinstance(include, bool):
         normalized["includeThoughts"] = include
     if isinstance(level, str) and level.strip():
-        normalized["thinkingLevel"] = level.strip().lower()
+        level_value = level.strip().lower()
+        if normalized_model.startswith("gemini-3"):
+            if "flash" in normalized_model and level_value not in {"low", "medium", "high"}:
+                level_value = "high" if level_value == "xhigh" else "medium"
+            elif "pro" in normalized_model and level_value not in {"low", "high"}:
+                level_value = "high" if level_value in {"medium", "xhigh"} else "low"
+        normalized["thinkingLevel"] = level_value
     return normalized or None
 
 
@@ -415,6 +435,7 @@ def build_gemini_request(
     top_p: Optional[float] = None,
     stop: Any = None,
     thinking_config: Any = None,
+    model: str = "",
 ) -> Dict[str, Any]:
     contents, system_instruction = _build_gemini_contents(messages)
     request: Dict[str, Any] = {"contents": contents}
@@ -450,7 +471,7 @@ def build_gemini_request(
         generation_config["topP"] = top_p
     if stop:
         generation_config["stopSequences"] = stop if isinstance(stop, list) else [str(stop)]
-    normalized_thinking = _normalize_thinking_config(thinking_config)
+    normalized_thinking = _normalize_thinking_config(thinking_config, model=model)
     if normalized_thinking:
         generation_config["thinkingConfig"] = normalized_thinking
     if generation_config:
@@ -931,6 +952,7 @@ class GeminiNativeClient:
             top_p=top_p,
             stop=stop,
             thinking_config=thinking_config,
+            model=model,
         )
 
         if stream:

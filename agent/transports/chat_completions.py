@@ -19,14 +19,31 @@ from agent.transports.base import ProviderTransport
 from agent.transports.types import NormalizedResponse, ToolCall, Usage
 
 
+def _normalize_gemini_model_name(model: str) -> str:
+    """Return the provider-native Gemini slug from catalog/proxy model IDs.
+
+    Palantir Foundry's LLM proxy uses opaque RIDs such as
+    ``ri.language-model-service..language-model.gemini-3-5-flash`` even
+    though its Google endpoint expects Gemini-native request semantics.  The
+    thinkingConfig decision must key off the RID tail, not the raw opaque ID.
+    """
+    normalized_model = (model or "").strip().lower()
+    if normalized_model.startswith("google/"):
+        normalized_model = normalized_model.split("/", 1)[1]
+    opaque_prefix = "ri.language-model-service..language-model."
+    if normalized_model.startswith(opaque_prefix):
+        normalized_model = normalized_model[len(opaque_prefix):]
+    if normalized_model.startswith("google-gemini-"):
+        normalized_model = normalized_model[len("google-"):]
+    return normalized_model
+
+
 def _build_gemini_thinking_config(model: str, reasoning_config: dict | None) -> dict | None:
     """Translate Hermes/OpenRouter-style reasoning config to Gemini thinkingConfig."""
     if reasoning_config is None or not isinstance(reasoning_config, dict):
         return None
 
-    normalized_model = (model or "").strip().lower()
-    if normalized_model.startswith("google/"):
-        normalized_model = normalized_model.split("/", 1)[1]
+    normalized_model = _normalize_gemini_model_name(model)
 
     # ``thinking_config`` is a Gemini-only request parameter. The same
     # ``gemini`` provider also serves Gemma (and historically PaLM/Bard);

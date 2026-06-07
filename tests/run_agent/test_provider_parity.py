@@ -230,6 +230,20 @@ class TestBuildApiKwargsOpenRouter:
             "thinking_level": "high",
         }
 
+    def test_palantir_gemini_rid_gets_native_thinking_config(self, monkeypatch):
+        agent = _make_agent(
+            monkeypatch,
+            "palantir-gemini",
+            base_url="https://example.palantirfoundry.co.uk/api/v2/llm/proxy/google/v1",
+            model="ri.language-model-service..language-model.gemini-3-5-flash",
+        )
+        agent.reasoning_config = {"enabled": True, "effort": "xhigh"}
+        kwargs = agent._build_api_kwargs([{"role": "user", "content": "hi"}])
+        assert kwargs["extra_body"]["thinking_config"] == {
+            "includeThoughts": True,
+            "thinkingLevel": "high",
+        }
+
     def test_should_sanitize_tool_calls_codex_vs_chat(self, monkeypatch):
         """Codex API should NOT sanitize, all other APIs should sanitize."""
         # Codex mode should NOT need sanitization
