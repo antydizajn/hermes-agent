@@ -467,7 +467,7 @@ class ChatCompletionsTransport(ProviderTransport):
             else:
                 extra_body["reasoning"] = {"enabled": True, "effort": "medium"}
 
-        if provider_name == "gemini":
+        if provider_name == "gemini" or "/api/v2/llm/proxy/google/" in str(base_url or "").lower():
             raw_thinking_config = _build_gemini_thinking_config(model, reasoning_config)
             if _is_gemini_openai_compat_base_url(base_url):
                 thinking_config = _snake_case_gemini_thinking_config(raw_thinking_config)
@@ -478,6 +478,15 @@ class ChatCompletionsTransport(ProviderTransport):
                     openai_compat_extra["google"] = google_extra
                     extra_body["extra_body"] = openai_compat_extra
             elif raw_thinking_config:
+                # Named custom providers that point at Palantir Foundry's
+                # native Gemini proxy (`/api/v2/llm/proxy/google/v1`) do not
+                # identify as provider_name == "gemini". Without this base_url
+                # fallback we only send the generic OpenAI-style
+                # extra_body.reasoning and omit Gemini's native thinking_config,
+                # which Foundry rejects with 422 INVALID_ARGUMENT on long
+                # contexts/tool loops. Treat the route as Gemini whenever the
+                # base URL is Foundry's google proxy, even for custom provider
+                # names like `palantir-gemini`.
                 extra_body["thinking_config"] = raw_thinking_config
         elif provider_name == "google-gemini-cli":
             thinking_config = _build_gemini_thinking_config(model, reasoning_config)

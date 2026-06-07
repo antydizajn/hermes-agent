@@ -713,6 +713,27 @@ def build_api_kwargs(agent, api_messages: list) -> dict:
         # registered providers with profiles were bypassing the strip.
         api_messages = agent._prepare_messages_for_non_vision_model(api_messages)
 
+        _profile_extra_body_additions = None
+        try:
+            _base_lower = str(agent.base_url or "").lower()
+            if "/api/v2/llm/proxy/google/" in _base_lower:
+                from agent.transports.chat_completions import _build_gemini_thinking_config
+                _raw_thinking = _build_gemini_thinking_config(agent.model, agent.reasoning_config)
+                if _raw_thinking:
+                    # Named custom providers such as `palantir-gemini` are
+                    # routed through a generic ProviderProfile path, so they
+                    # never hit the legacy provider_name == "gemini" branch
+                    # that adds Gemini-native thinking_config. Palantir's
+                    # Google proxy speaks Gemini native REST under
+                    # /api/v2/llm/proxy/google/v1; without thinking_config the
+                    # request carries only OpenAI-style extra_body.reasoning,
+                    # which Foundry rejects with 422 INVALID_ARGUMENT on longer
+                    # contexts. Inject Gemini-native thinking_config here based
+                    # on the base URL, regardless of provider name.
+                    _profile_extra_body_additions = {"thinking_config": _raw_thinking}
+        except Exception:
+            _profile_extra_body_additions = None
+
         return _ct.build_kwargs(
             model=agent.model,
             messages=api_messages,
@@ -733,6 +754,7 @@ def build_api_kwargs(agent, api_messages: list) -> dict:
             anthropic_max_output=_ant_max,
             supports_reasoning=agent._supports_reasoning_extra_body(),
             qwen_session_metadata=_qwen_meta,
+            extra_body_additions=_profile_extra_body_additions,
         )
 
     # ── Legacy flag path ────────────────────────────────────────────
