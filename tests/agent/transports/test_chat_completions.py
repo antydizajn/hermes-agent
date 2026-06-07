@@ -449,6 +449,60 @@ class TestChatCompletionsBuildKwargs:
         )
         assert "thinking_config" not in kw.get("extra_body", {})
 
+    def test_palantir_google_proxy_named_provider_gets_gemini_thinking_config(self, transport):
+        # Regression (Palantir Foundry, 2026-06-07): a NAMED custom provider
+        # (e.g. "palantir-gemini") pointing at Foundry's native Gemini proxy
+        # `/api/v2/llm/proxy/google/v1` does NOT report provider_name == "gemini",
+        # so the legacy `provider_name == "gemini"` branch was skipped and the
+        # request carried only generic OpenAI-style extra_body.reasoning. Foundry's
+        # Google proxy speaks Gemini-native REST and rejected that with HTTP 422
+        # INVALID_ARGUMENT on longer contexts. The fix keys off the base_url path
+        # segment so the route is treated as Gemini-native regardless of the
+        # custom provider name.
+        msgs = [{"role": "user", "content": "Hi"}]
+        kw = transport.build_kwargs(
+            model="ri.language-model-service..language-model.gemini-3-5-flash",
+            messages=msgs,
+            provider_name="palantir-gemini",
+            base_url="https://antydizajn.euw-3.palantirfoundry.co.uk/api/v2/llm/proxy/google/v1",
+            reasoning_config={"enabled": True, "effort": "high"},
+        )
+        # Native Gemini thinking_config must be present at top-level extra_body,
+        # NOT the OpenAI-compat nested google form (proxy is native REST).
+        assert kw["extra_body"]["thinking_config"] == {
+            "includeThoughts": True,
+            "thinkingLevel": "high",
+        }
+        assert "google" not in kw["extra_body"]
+
+    def test_palantir_google_proxy_named_provider_disabled_reasoning_hides_thoughts(self, transport):
+        # Even with reasoning disabled, the named-custom Palantir Google proxy
+        # route must still emit the Gemini-native shape (includeThoughts: False),
+        # not fall through to the OpenAI-only reasoning field.
+        msgs = [{"role": "user", "content": "Hi"}]
+        kw = transport.build_kwargs(
+            model="ri.language-model-service..language-model.gemini-3-1-pro",
+            messages=msgs,
+            provider_name="palantir-gemini",
+            base_url="https://antydizajn.euw-3.palantirfoundry.co.uk/api/v2/llm/proxy/google/v1",
+            reasoning_config={"enabled": False},
+        )
+        assert kw["extra_body"]["thinking_config"] == {"includeThoughts": False}
+
+    def test_non_google_named_provider_does_not_get_gemini_thinking_config(self, transport):
+        # Negative guard: a named custom provider on a NON-google base_url
+        # (e.g. Palantir's OpenAI/Anthropic proxy) must NOT receive Gemini-native
+        # thinking_config — the fix is scoped strictly to the google proxy path.
+        msgs = [{"role": "user", "content": "Hi"}]
+        kw = transport.build_kwargs(
+            model="ri.language-model-service..language-model.gpt-5-5",
+            messages=msgs,
+            provider_name="palantir-gpt54",
+            base_url="https://antydizajn.euw-3.palantirfoundry.co.uk/api/v2/llm/proxy/openai/v1",
+            reasoning_config={"enabled": True, "effort": "high"},
+        )
+        assert "thinking_config" not in kw.get("extra_body", {})
+
     def test_max_tokens_with_fn(self, transport):
         msgs = [{"role": "user", "content": "Hi"}]
         kw = transport.build_kwargs(
