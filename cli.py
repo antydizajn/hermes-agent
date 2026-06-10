@@ -191,6 +191,36 @@ _REASONING_TAGS = (
 )
 
 
+def _palantir_rid_to_brand(model_id: str) -> str:
+    """Convert a Palantir RID to a friendly brand name for DISPLAY only.
+
+    ``ri.language-model-service..language-model.anthropic-claude-4-8-opus``
+    -> ``Claude Opus 4.8``. Non-RID names (aliases, plain model ids) pass
+    through untouched. DISPLAY ONLY — selection code must still index the raw
+    RID, never this string. Restored 2026-06-10 after hermes update wiped the
+    in-tree tui-display patch; upstream rebuilt the picker without RID->brand.
+    """
+    if not model_id or "language-model." not in model_id:
+        return model_id
+    slug = model_id.split("language-model.")[-1]
+    import re as _re
+    m = _re.match(r"anthropic-claude-(\d+)-(\d+)-(opus|sonnet|haiku)$", slug)
+    if m:
+        return f"Claude {m.group(3).capitalize()} {m.group(1)}.{m.group(2)}"
+    m = _re.match(r"gpt-(\d+)-(\d+)(?:-(mini|nano))?$", slug)
+    if m:
+        suffix = f" {m.group(3)}" if m.group(3) else ""
+        return f"GPT-{m.group(1)}.{m.group(2)}{suffix}"
+    m = _re.match(r"gemini-(\d+)-(\d+)-(pro|flash)$", slug)
+    if m:
+        return f"Gemini {m.group(1)}.{m.group(2)} {m.group(3).capitalize()}"
+    m = _re.match(r"grok-(\d+)(?:-(\d+))?(?:-(\d+))?$", slug)
+    if m:
+        ver = ".".join([g for g in m.groups() if g])
+        return f"Grok {ver}"
+    return slug  # at least drop the long RID prefix
+
+
 def _strip_reasoning_tags(text: str) -> str:
     """Remove reasoning/thinking blocks from displayed text.
 
@@ -3799,7 +3829,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # _try_activate_fallback() switches provider/model.
         agent = getattr(self, "agent", None)
         model_name = (getattr(agent, "model", None) or self.model or "unknown")
-        model_short = model_name.split("/")[-1] if "/" in model_name else model_name
+        # Friendly brand for Palantir RIDs BEFORE shortening, else the status
+        # bar shows the truncated raw RID (ri.language-model-servi...).
+        model_short = _palantir_rid_to_brand(model_name)
+        model_short = model_short.split("/")[-1] if "/" in model_short else model_short
         if model_short.endswith(".gguf"):
             model_short = model_short[:-5]
         if len(model_short) > 26:
@@ -5649,7 +5682,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         print("+" + "-" * width + "+")
         print()
         print("  -- Model --")
-        print(f"  Model:     {self.model}")
+        print(f"  Model:     {_palantir_rid_to_brand(self.model)}")
         print(f"  Base URL:  {self.base_url}")
         print(f"  API Key:   {api_key_display}")
         print()
@@ -6569,7 +6602,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         )
 
         provider_label = result.provider_label or result.target_provider
-        _cprint(f"  ✓ Model switched: {result.new_model}")
+        _cprint(f"  ✓ Model switched: {_palantir_rid_to_brand(result.new_model)}")
         _cprint(f"    Provider: {provider_label}")
 
         # Context: always resolve via the provider-aware chain so Codex OAuth,
@@ -6729,7 +6762,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         # No args at all: open prompt_toolkit-native picker modal
         if not model_input and not explicit_provider:
-            model_display = self.model or "unknown"
+            model_display = _palantir_rid_to_brand(self.model) if self.model else "unknown"
             provider_display = get_label(self.provider) if self.provider else "unknown"
 
             try:
@@ -6816,7 +6849,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         # Display confirmation with full metadata
         provider_label = result.provider_label or result.target_provider
-        _cprint(f"  ✓ Model switched: {result.new_model}")
+        _cprint(f"  ✓ Model switched: {_palantir_rid_to_brand(result.new_model)}")
         _cprint(f"    Provider: {provider_label}")
 
         # Context: always resolve via the provider-aware chain so Codex OAuth,
@@ -8111,7 +8144,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         print("  📊 Session Token Usage")
         print(f"  {'─' * 40}")
-        print(f"  Model:                     {agent.model}")
+        print(f"  Model:                     {_palantir_rid_to_brand(agent.model)}")
         print(f"  Input tokens:              {input_tokens:>10,}")
         print(f"  Cache read tokens:         {cache_read_tokens:>10,}")
         print(f"  Cache write tokens:        {cache_write_tokens:>10,}")
@@ -12285,7 +12318,12 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 provider_data = state.get("provider_data") or {}
                 model_list = state.get("model_list") or []
                 title = f"⚙ Model Picker — {provider_data.get('name', provider_data.get('slug', 'Provider'))}"
-                choices = list(model_list) + ["← Back", "Cancel"]
+                # DISPLAY ONLY: map RIDs to friendly brand names. Selection code
+                # (_handle_model_picker_selection) still indexes the raw
+                # model_list via model_list[selected], so the real RID is what
+                # gets switched — never this display string.
+                _display_models = [_palantir_rid_to_brand(m) for m in model_list]
+                choices = list(_display_models) + ["← Back", "Cancel"]
                 if model_list:
                     hint = f"Select a model ({len(model_list)} available)"
                 else:
