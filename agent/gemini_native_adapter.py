@@ -943,6 +943,26 @@ class GeminiNativeClient:
         if isinstance(extra_body, dict):
             thinking_config = extra_body.get("thinking_config") or extra_body.get("thinkingConfig")
 
+        # Palantir Foundry google proxy rejects the Gemini-3 ``thinkingLevel``
+        # field with HTTP 422 INVALID_ARGUMENT (verified empirically 2026-06-10:
+        # ``{includeThoughts:true, thinkingLevel:"low"}`` -> 422, but
+        # ``{includeThoughts:true}`` and ``{thinkingBudget:N}`` -> 200 on both
+        # gemini-3-5-flash and gemini-3-1-pro). The proxy speaks an older Gemini
+        # REST dialect that predates ``thinkingLevel``. Strip ONLY that field on
+        # the Palantir surface so thinking traces still work (includeThoughts is
+        # accepted) without poisoning every request. Native Google AI Studio is
+        # untouched. This supersedes the 2026-06-07 inject-thinking_config fix:
+        # the proxy now 422s on the level subfield it previously tolerated.
+        if (
+            isinstance(thinking_config, dict)
+            and "/api/v2/llm/proxy/google" in (self.base_url or "").lower()
+            and ("thinkingLevel" in thinking_config or "thinking_level" in thinking_config)
+        ):
+            thinking_config = {
+                k: v for k, v in thinking_config.items()
+                if k not in ("thinkingLevel", "thinking_level")
+            } or None
+
         request = build_gemini_request(
             messages=messages or [],
             tools=tools,
