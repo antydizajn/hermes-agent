@@ -258,6 +258,16 @@ def _translate_tool_call_to_gemini(tool_call: Dict[str, Any]) -> Dict[str, Any]:
     thought_signature = _tool_call_extra_signature(tool_call)
     if thought_signature:
         part["thoughtSignature"] = thought_signature
+    else:
+        # Gemini 3 REQUIRES a thoughtSignature on every functionCall part in
+        # multi-turn tool conversations (HTTP 400/422 "Function call is missing
+        # a thought_signature" — verified 2026-06-10 on Palantir Vertex proxy).
+        # Hermes' generic message history does not round-trip the custom
+        # extra_content where the real signature lives, so by turn 2 it is gone.
+        # Google documents the literal sentinel "skip" for exactly this case
+        # (replaying a function call whose signature is unavailable) — verified
+        # to return HTTP 200 where a missing/invalid signature 400s.
+        part["thoughtSignature"] = "skip"
     return part
 
 
