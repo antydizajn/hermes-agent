@@ -1297,7 +1297,8 @@ def create_openai_client(agent, client_kwargs: dict, *, reason: str, shared: boo
             agent._client_log_context(),
         )
         return client
-    if agent.provider == "gemini":
+    _ck_base = str(client_kwargs.get("base_url", "") or "").lower()
+    if agent.provider == "gemini" or "/api/v2/llm/proxy/google" in _ck_base:
         from agent.gemini_native_adapter import GeminiNativeClient, is_native_gemini_base_url
 
         base_url = str(client_kwargs.get("base_url", "") or "")
