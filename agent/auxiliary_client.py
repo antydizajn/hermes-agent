@@ -4312,6 +4312,13 @@ def auxiliary_max_tokens_param(value: int) -> dict:
     or_key = os.getenv("OPENROUTER_API_KEY")
     # Use max_completion_tokens for direct OpenAI-compatible providers that reject
     # max_tokens on newer GPT-4o/o-series/GPT-5-style models.
+    # Palantir Foundry's OpenAI surface (/api/v2/llm/proxy/openai) proxies real
+    # OpenAI models (gpt-5-4/5-5/mini) which 400 on max_tokens with
+    # "Unsupported parameter: use max_completion_tokens instead" — verified
+    # 2026-06-10 when compression (gpt-5-5) failed and context couldn't compress.
+    _cb = (custom_base or "").lower()
+    if "/api/v2/llm/proxy/openai" in _cb:
+        return {"max_completion_tokens": value}
     if (not or_key
             and _read_nous_auth() is None
             and base_url_hostname(custom_base) in {"api.openai.com", "api.githubcopilot.com"}):

@@ -1261,6 +1261,13 @@ class AIAgent:
         """
         if self._is_direct_openai_url() or self._is_azure_openai_url() or self._is_github_copilot_url():
             return {"max_completion_tokens": value}
+        # Palantir Foundry's OpenAI surface (/api/v2/llm/proxy/openai) proxies
+        # real OpenAI models (gpt-5-4/5-5/mini) which 400 on max_tokens:
+        # "Unsupported parameter: use max_completion_tokens instead" — verified
+        # 2026-06-10 (compression via gpt-5-5 failed, context couldn't compress).
+        _bl = (getattr(self, "_base_url_lower", "") or "").lower()
+        if "/api/v2/llm/proxy/openai" in _bl:
+            return {"max_completion_tokens": value}
         return {"max_tokens": value}
 
     @staticmethod
