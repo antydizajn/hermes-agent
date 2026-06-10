@@ -42,7 +42,38 @@ logger = logging.getLogger(__name__)
 from tools.threat_patterns import scan_for_threats as _scan_for_threats
 
 
-def _scan_context_content(content: str, filename: str) -> str:
+def _is_trusted_soul(source_path: Optional[Path]) -> bool:
+    """True when the scanned file is the user's own canonical identity file.
+
+    The trusted SOUL is ``HERMES_HOME/SOUL.md`` itself (whatever it resolves
+    to — a real file, or a POSIX symlink the user deliberately created to a
+    canonical identity like ``~/.gemini/GEMINI.md``). This is the user's OWN
+    identity document, authored by them, not untrusted repo content. It is
+    allowed to carry benign STRUCTURAL HTML comments (``<!-- BLOCK 5 ... -->``)
+    without tripping ``html_comment_injection`` — while every OTHER threat
+    pattern (ignore-previous-instructions, role-play hijack, C2, etc.) is
+    still enforced. Narrow by design: only the SOUL slot, only one pattern.
+    """
+    if source_path is None:
+        return False
+    try:
+        soul = get_hermes_home() / "SOUL.md"
+        # Compare both the literal SOUL path and its resolved target, so a
+        # symlinked SOUL (SOUL.md -> ~/.gemini/GEMINI.md) is recognized whether
+        # we were handed the link or the resolved file.
+        return source_path.resolve() == soul.resolve()
+    except Exception:
+        return False
+
+
+# Threat types that a trusted SOUL/identity file is permitted to contain.
+# ONLY benign structural HTML comments — nothing instruction-overriding.
+_SOUL_ALLOWED_THREATS = frozenset({"html_comment_injection"})
+
+
+def _scan_context_content(
+    content: str, filename: str, source_path: Optional[Path] = None
+) -> str:
     """Scan context file content for injection. Returns sanitized content.
 
     Uses the "context" scope from the shared threat-pattern library, which
@@ -52,8 +83,16 @@ def _scan_context_content(content: str, filename: str) -> str:
     cloned repo (security research, infra docs).  Content matching is
     BLOCKED at this layer because the file would otherwise enter the
     system prompt verbatim and the user has no chance to intervene.
+
+    NARROW EXCEPTION: when ``source_path`` is the user's own trusted SOUL
+    identity file, benign structural HTML comments are tolerated (the user
+    authored their own identity). Every other threat pattern still blocks,
+    and any NON-SOUL file is scanned with zero exceptions.
     """
     findings = _scan_for_threats(content, scope="context")
+    if findings and _is_trusted_soul(source_path):
+        # Drop only the SOUL-allowed (structural-comment) findings; keep the rest.
+        findings = [f for f in findings if f not in _SOUL_ALLOWED_THREATS]
     if findings:
         logger.warning("Context file %s blocked: %s", filename, ", ".join(findings))
         return f"[BLOCKED: {filename} contained potential prompt injection ({', '.join(findings)}). Content not loaded.]"
@@ -1434,7 +1473,7 @@ def load_soul_md() -> Optional[str]:
         content = soul_path.read_text(encoding="utf-8").strip()
         if not content:
             return None
-        content = _scan_context_content(content, "SOUL.md")
+        content = _scan_context_content(content, "SOUL.md", source_path=soul_path)
         content = _truncate_content(content, "SOUL.md")
         return content
     except Exception as e:
