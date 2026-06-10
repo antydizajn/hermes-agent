@@ -877,9 +877,17 @@ class GeminiNativeClient:
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "x-goog-api-key": self.api_key,
             "User-Agent": "hermes-agent (gemini-native)",
         }
+        # Palantir Foundry's google surface requires Bearer auth (per Palantir
+        # docs aip/llm-provider-compatible-apis.md line 47-50: "Authorization:
+        # Bearer ***"), NOT Google AI Studio's x-goog-api-key. Sending
+        # x-goog-api-key against the proxy -> HTTP 401 MissingCredentials
+        # (verified 2026-06-10). Public Google AI Studio still uses x-goog-api-key.
+        if "/api/v2/llm/proxy/google" in (self.base_url or "").lower():
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        else:
+            headers["x-goog-api-key"] = self.api_key
         headers.update(self._default_headers)
         return headers
 
