@@ -199,6 +199,7 @@ class ChatCompletionsTransport(ProviderTransport):
                 or "reasoning" in msg
                 or "reasoning_content" in msg
                 or "reasoning_details" in msg
+                or (msg.get("role") == "tool" and "name" in msg)
             ):
                 needs_sanitize = True
                 break
@@ -228,6 +229,13 @@ class ChatCompletionsTransport(ProviderTransport):
             msg.pop("codex_reasoning_items", None)
             msg.pop("codex_message_items", None)
             msg.pop("tool_name", None)
+            # ``name`` on tool-result messages (``role=tool``) — strict
+            # OpenAI-compatible gateways like Palantir LLM-proxy reject it with
+            # ``HTTP 400 unrecognizedProperty=name``. Correlation is already
+            # covered by ``tool_call_id``. Strip ONLY on role=tool; ``name`` is
+            # meaningful on assistant/function messages and must be preserved.
+            if msg.get("role") == "tool":
+                msg.pop("name", None)
             # Reasoning echo fields — see docstring above.  Dropping on
             # the OpenAI-wire path is provider-agnostic; the
             # Anthropic-Messages transport reads these from a separate
