@@ -271,6 +271,26 @@ def _translate_tool_call_to_gemini(tool_call: Dict[str, Any]) -> Dict[str, Any]:
     return part
 
 
+def _strip_nulls(obj: Any) -> Any:
+    """Recursively drop None values from dicts/lists.
+
+    Gemini's Palantir/Vertex google proxy returns HTTP 422 INVALID_ARGUMENT
+    (Conjure:UnprocessableEntity, empty params) on ANY ``null`` value inside a
+    ``functionResponse.response`` object — verified empirically 2026-06-13 by
+    isolation: ``{"error": null}`` -> 422, ``{"error": ""}`` -> 200,
+    ``{"exit_code": null}`` -> 422. Many Hermes tools return ``"error": null``
+    (terminal, etc.), so every tool result poisoned the request and the proxy
+    failed opaquely (empty params, no descriptive message). Native Google AI
+    Studio tolerates nulls; this only bites the Foundry proxy. Strip nulls so
+    valid keys survive while the rejected null values are removed.
+    """
+    if isinstance(obj, dict):
+        return {k: _strip_nulls(v) for k, v in obj.items() if v is not None}
+    if isinstance(obj, list):
+        return [_strip_nulls(x) for x in obj if x is not None]
+    return obj
+
+
 def _translate_tool_result_to_gemini(
     message: Dict[str, Any],
     tool_name_by_call_id: Optional[Dict[str, str]] = None,
@@ -289,6 +309,12 @@ def _translate_tool_result_to_gemini(
     except json.JSONDecodeError:
         parsed = None
     response = parsed if isinstance(parsed, dict) else {"output": content}
+    # Drop null values — the Foundry google proxy 422s on any null inside
+    # functionResponse.response (see _strip_nulls docstring). Guarantee the
+    # response is still a non-empty dict (Gemini requires a response object).
+    response = _strip_nulls(response)
+    if not isinstance(response, dict) or not response:
+        response = {"output": content}
     return {
         "functionResponse": {
             "name": name,
@@ -312,17 +338,27 @@ def _build_gemini_contents(messages: List[Dict[str, Any]]) -> tuple[List[Dict[st
             continue
 
         if role in {"tool", "function"}:
-            contents.append(
-                {
-                    "role": "user",
-                    "parts": [
-                        _translate_tool_result_to_gemini(
-                            msg,
-                            tool_name_by_call_id=tool_name_by_call_id,
-                        )
-                    ],
-                }
+            fr_part = _translate_tool_result_to_gemini(
+                msg,
+                tool_name_by_call_id=tool_name_by_call_id,
             )
+            # Gemini-native requires that a model turn with N functionCall parts
+            # is answered by a SINGLE user turn containing N functionResponse
+            # parts. OpenAI-format history has each tool result as its own
+            # role=tool message, which naively maps to N separate user turns and
+            # the proxy 400s: "the number of function response parts is equal to
+            # the number of function call parts of the function call turn".
+            # Merge consecutive tool results into the previous user turn when it
+            # already holds only functionResponse parts (verified 2026-06-13).
+            if (
+                contents
+                and contents[-1].get("role") == "user"
+                and contents[-1].get("parts")
+                and all("functionResponse" in p for p in contents[-1]["parts"])
+            ):
+                contents[-1]["parts"].append(fr_part)
+            else:
+                contents.append({"role": "user", "parts": [fr_part]})
             continue
 
         gemini_role = "model" if role == "assistant" else "user"
