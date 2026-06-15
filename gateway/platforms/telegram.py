@@ -20,6 +20,39 @@ from typing import Dict, List, Optional, Set, Any
 
 logger = logging.getLogger(__name__)
 
+
+def _palantir_rid_to_brand(model_id: str) -> str:
+    """Convert a Palantir RID to a friendly brand name for DISPLAY only.
+
+    ``ri.language-model-service..language-model.anthropic-claude-4-8-opus``
+    -> ``Claude Opus 4.8``. Non-RID names (aliases, plain model ids) pass
+    through untouched. DISPLAY ONLY — the model picker's selection path must
+    still index the RAW model_id list (callback ``mm:{abs_idx}``), never this
+    string. Copy of cli.py::_palantir_rid_to_brand so the Telegram gateway
+    picker shows brand names instead of truncated RIDs (added 2026-06-15;
+    the gateway path never had the TUI's RID->brand mapping).
+    """
+    if not model_id or "language-model." not in model_id:
+        return model_id
+    slug = model_id.split("language-model.")[-1]
+    import re as _re
+    m = _re.match(r"anthropic-claude-(\d+)-(\d+)-(opus|sonnet|haiku)$", slug)
+    if m:
+        return f"Claude {m.group(3).capitalize()} {m.group(1)}.{m.group(2)}"
+    m = _re.match(r"gpt-(\d+)-(\d+)(?:-(mini|nano))?$", slug)
+    if m:
+        suffix = f" {m.group(3)}" if m.group(3) else ""
+        return f"GPT-{m.group(1)}.{m.group(2)}{suffix}"
+    m = _re.match(r"gemini-(\d+)-(\d+)-(pro|flash)$", slug)
+    if m:
+        return f"Gemini {m.group(1)}.{m.group(2)} {m.group(3).capitalize()}"
+    m = _re.match(r"grok-(\d+)(?:-(\d+))?(?:-(\d+))?$", slug)
+    if m:
+        ver = ".".join([g for g in m.groups() if g])
+        return f"Grok {ver}"
+    return slug  # at least drop the long RID prefix
+
+
 try:
     from telegram import Update, Bot, Message, InlineKeyboardButton, InlineKeyboardMarkup
     try:
@@ -2895,7 +2928,7 @@ class TelegramAdapter(BasePlatformAdapter):
             text = self.format_message(
                 (
                     f"⚙ *Model Configuration*\n\n"
-                    f"Current model: `{current_model or 'unknown'}`\n"
+                    f"Current model: `{_palantir_rid_to_brand(current_model) if current_model else 'unknown'}`\n"
                     f"Provider: {provider_label}\n\n"
                     f"Select a provider:"
                 )
@@ -3000,7 +3033,14 @@ class TelegramAdapter(BasePlatformAdapter):
         buttons: list = []
         for i, model_id in enumerate(page_models):
             abs_idx = start + i
-            short = model_id.split("/")[-1] if "/" in model_id else model_id
+            # DISPLAY ONLY: Palantir RIDs (no "/") render as friendly brand
+            # names; non-RID ids fall back to the post-"/" slug. Selection still
+            # indexes the raw page_models via callback mm:{abs_idx} below.
+            brand = _palantir_rid_to_brand(model_id)
+            if brand != model_id:
+                short = brand
+            else:
+                short = model_id.split("/")[-1] if "/" in model_id else model_id
             if len(short) > 38:
                 short = short[:35] + "..."
             buttons.append(
