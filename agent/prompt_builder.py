@@ -969,6 +969,14 @@ def build_environment_hints() -> str:
 CONTEXT_FILE_MAX_CHARS = 20_000
 CONTEXT_TRUNCATE_HEAD_RATIO = 0.7
 CONTEXT_TRUNCATE_TAIL_RATIO = 0.2
+# SOUL.md (the user's canonical identity/constitution) gets its own, much larger
+# budget so the FULL constitution is injected every turn — not just head+tail.
+# The constitution (~70k chars / ~18k tokens) is load-bearing law (L0-L53), and
+# the previous 20k cap silently dropped the middle (L9-L51). 80k covers it whole
+# with headroom for growth. Cost is paid knowingly per Paulina's directive
+# (2026-06-15, "A"): full law in context > token savings. This is SOUL-only;
+# AGENTS.md / .cursorrules still use the 20k cap above.
+SOUL_FILE_MAX_CHARS = 80_000
 
 
 # =========================================================================
@@ -1474,7 +1482,7 @@ def load_soul_md() -> Optional[str]:
         if not content:
             return None
         content = _scan_context_content(content, "SOUL.md", source_path=soul_path)
-        content = _truncate_content(content, "SOUL.md")
+        content = _truncate_content(content, "SOUL.md", max_chars=SOUL_FILE_MAX_CHARS)
         return content
     except Exception as e:
         logger.debug("Could not read SOUL.md from %s: %s", soul_path, e)
