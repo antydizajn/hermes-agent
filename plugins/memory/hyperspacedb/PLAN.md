@@ -1161,10 +1161,10 @@ This section must be updated live. A final bulk update is forbidden.
 - Active step: `43 [!]`
 - Base progress: `40/43 tracked steps completed; strict E2E gates 26, 28, and 43 remain blocked`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T08:40:22+02:00`
-- Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
-- Current blocker: `NONE RECORDED`
-- Immediate next action: `Await approved isolated E2E credentials; do not run mutations elsewhere.`
+- Last PLAN.md update UTC: `2026-08-11T08:44:30+02:00`
+- Last verified test level: `INTEGRATION TESTED AGAINST CURRENT FAKE/STATIC SUITE: 85 PASS; NOT E2E TESTED`
+- Current blocker: `STRICT ISOLATED E2E CONFIGURATION IS NOT APPROVED/AVAILABLE`
+- Immediate next action: `Read HANDOFF.md, then await approved isolated E2E credentials; do not run mutations elsewhere.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
@@ -1177,14 +1177,14 @@ NONE` while any row is `[>]`.
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
 - Started UTC: `2026-08-11T08:40:22+02:00`
-- Last updated UTC: `2026-08-11T08:40:22+02:00`
-- Files/scope: `PLAN.md; tests/run_test_collection_e2e.py`
+- Last updated UTC: `2026-08-11T08:44:30+02:00`
+- Files/scope: `PLAN.md; HANDOFF.md`
 - Intended acceptance test: `Authorized add/replace/remove E2E against a dedicated hsdb_e2e_ collection.`
-- Latest command/observation: `Approval-only E2E probe: exit 1 at missing test HMAC gate, before client creation.`
+- Latest command/observation: `Created HANDOFF.md after a clean scoped Git status and PTY full suite: 85 passed in 3.07s.`
 - Exit code: `0`
-- Evidence/result: `Static release gate clean and 85 tests pass, but provider is not production-ready without mutation E2E.`
+- Evidence/result: `HANDOFF.md records scope, commits, verified work, strict E2E gates, and exact continuation conditions. Provider remains not production-ready without mutation E2E.`
 - Blocker: `No approved HSDB_TEST_SOURCE_COLLECTION, HSDB_TEST_COLLECTION, HSDB_TEST_OWNERSHIP_HMAC_KEY, or external HSDB_E2E_STATE_PATH.`
-- Next action: `Run strict E2E only after explicit isolated credentials are provided.`
+- Next action: `Next session must read HANDOFF.md and PLAN.md, then run E2E only after explicit isolated authorization.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1275,3 +1275,4 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T08:37:18+02:00 | 40 | VERIFY | Checked the actual Git tracked manifest rather than merely `.gitignore`. | 84 full tests pass and no runtime state, SQLite, or bytecode is tracked. | Mark Step 40 complete; checkpoint report due. |
 | 2026-08-11T08:40:15+02:00 | 43 | VERIFY | Ran the runner with literal approval but unset test HMAC/state/source/target variables. | Exit 1 at HMAC gate before a client, collection, or mutation operation. | Retain NOT_E2E_VERIFIED verdict. |
 | 2026-08-11T08:40:22+02:00 | 43 | VERDICT | 85 fake/static tests and release gates are green, but payload-shape, relevance-distance calibration, and add/replace/remove integration are unmeasured. | Public release is not production-ready. | Stop optional work; wait for authorized isolated E2E. |
+| 2026-08-11T08:44:30+02:00 | HANDOFF | HANDOFF | Created `HANDOFF.md` with the complete compact continuation state after a clean scoped Git status and PTY full suite. | Next executor has explicit scope, evidence, commits, blockers, and tracker rules. | Read HANDOFF.md and PLAN.md before any action. |
