@@ -27,6 +27,22 @@ from hyperspace import HyperspaceClient
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def require_external_state_path(value: str) -> str:
+    """Return an absolute ledger path outside PLUGIN_ROOT without creating it."""
+    raw = str(value).strip()
+    if not raw:
+        raise SystemExit("HSDB_E2E_STATE_PATH is required; do not write E2E state into this plugin")
+    candidate = Path(raw).expanduser()
+    if not candidate.is_absolute():
+        raise SystemExit("HSDB_E2E_STATE_PATH must be an absolute path outside this plugin")
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(ROOT.resolve())
+    except ValueError:
+        return str(resolved)
+    raise SystemExit("HSDB_E2E_STATE_PATH must resolve outside this plugin")
+
+
 def load_provider_module():
     name = "hsdb_plugin_e2e"
     spec = importlib.util.spec_from_file_location(name, ROOT / "__init__.py")
@@ -73,9 +89,7 @@ def main():
     ownership_key = os.environ.get("HSDB_TEST_OWNERSHIP_HMAC_KEY", "").strip()
     if not ownership_key:
         raise SystemExit("HSDB_TEST_OWNERSHIP_HMAC_KEY is required for authenticated E2E writes")
-    state_path = os.environ.get("HSDB_E2E_STATE_PATH", "").strip()
-    if not state_path:
-        raise SystemExit("HSDB_E2E_STATE_PATH is required; do not write E2E state into this plugin")
+    state_path = require_external_state_path(os.environ.get("HSDB_E2E_STATE_PATH", ""))
     source = os.environ.get("HSDB_TEST_SOURCE_COLLECTION", "").strip()
     target = os.environ.get("HSDB_TEST_COLLECTION", "").strip()
     if not source or not target or source == target:

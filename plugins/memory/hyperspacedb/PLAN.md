@@ -203,6 +203,14 @@ First E2E action for Terra:
 
 These are not optional polish. Terra must attack them before E2E.
 
+### Historical-context boundary
+
+This section preserves pre-closure defect analysis and must not be read as the
+live status by itself. The current authority is section 8: a numbered tracker
+row marked `[x]` records a later source/test closure; a row marked `[!]` remains
+blocked. A narrative item here can identify residual real-backend uncertainty
+without proving that its earlier fake-client implementation gap remains open.
+
 ### P0-A: SDK-swallowed RPC errors are still not fully solved
 
 The current deadline proxy adds a real gRPC timeout, but the HyperspaceDB Python
@@ -1155,36 +1163,58 @@ until Terra closes those gaps and the dedicated collection E2E passes.
 
 This section must be updated live. A final bulk update is forbidden.
 
+### L6 remediation scope - approved 2026-08-11T09:56:03+02:00
+
+Goal: make the E2E runner reject an empty, relative, or PLUGIN_ROOT-contained
+`HSDB_E2E_STATE_PATH` before client construction, collection access, or mutation.
+
+Allowed file changes, and no others:
+
+1. `tests/run_test_collection_e2e.py`: add a pure runtime state-path validator
+   and call it immediately after reading the environment value.
+2. `tests/test_public_release.py`: add deterministic source/behavior tests for
+   empty, relative, in-root, and external absolute state paths. Tests must not
+   construct a client or contact a backend.
+3. `PLAN.md`: live tracker, commands, exit codes, evidence, and append-only log.
+
+Non-goals: no `__init__.py`, README, manifest, configuration, SDK/server,
+credentials, collection, fixture, runtime-state cleanup, real E2E, A1-A8, or
+other test/source file change.
+
+Acceptance: all invalid paths fail before client construction; an external
+absolute path is accepted by the pure guard; changed targeted test and fresh
+full local PTY suite pass. This earns UNIT/INTEGRATION evidence only, never E2E.
+
 ### CURRENT EXECUTION STATE
 
-- Current phase: `PHASE B - CLOSE P0-A THROUGH P0-H`
-- Active step: `43 [!]`
+- Current phase: `PUBLIC RELEASE PREPARED; COMMIT AND PUSH PENDING`
+- Active step: `PUBLISH-1 [>]`
 - Base progress: `40/43 tracked steps completed; strict E2E gates 26, 28, and 43 remain blocked`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T08:44:30+02:00`
-- Last verified test level: `INTEGRATION TESTED AGAINST CURRENT FAKE/STATIC SUITE: 85 PASS; NOT E2E TESTED`
+- Last PLAN.md update UTC: `2026-08-11T10:55:55+02:00`
+- Last verified test level: `L4 INTEGRATION TESTED AGAINST CURRENT LOCAL FAKE/STATIC SUITE: 90 PASS IN 3.60S; NOT E2E TESTED`
 - Current blocker: `STRICT ISOLATED E2E CONFIGURATION IS NOT APPROVED/AVAILABLE`
-- Immediate next action: `Read HANDOFF.md, then await approved isolated E2E credentials; do not run mutations elsewhere.`
+- Immediate next action: `Selectively stage reviewed plugin release files, commit, split the plugin subtree, force-push the user-authorized public target main, then read back the remote tree.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `43 [!]`
-- Goal: `Strict isolated E2E write and final production verdict.`
-- Why now / dependency satisfied: `All static/release work is complete; E2E has multiple verified pre-write gates.`
+- Step ID: `PUBLISH-1 [>]`
+- Goal: `Replace the user-authorized public target v1 with the current reviewed plugin artifact.`
+- Why now / dependency satisfied: `User explicitly ordered replacement push after target visibility was checked. Candidate scan is clean and current full local suite passed.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T08:40:22+02:00`
-- Last updated UTC: `2026-08-11T08:44:30+02:00`
-- Files/scope: `PLAN.md; HANDOFF.md`
-- Intended acceptance test: `Authorized add/replace/remove E2E against a dedicated hsdb_e2e_ collection.`
-- Latest command/observation: `Created HANDOFF.md after a clean scoped Git status and PTY full suite: 85 passed in 3.07s.`
+- Started UTC: `2026-08-11T10:55:55+02:00`
+- Last updated UTC: `2026-08-11T10:55:55+02:00`
+- Files/scope: `Only reviewed files under PLUGIN_ROOT. Local monorepo Git index is used solely for selective plugin paths; target main replacement is explicitly user-authorized.`
+- Intended acceptance test: `Public candidate scan clean; full local PTY suite passes; staged scope is exact; subtree push succeeds; remote main tree readback matches expected plugin root files.`
+- Latest command/observation: `Target main root and public visibility inspected; current candidate scan found zero configured leak patterns.`
 - Exit code: `0`
-- Evidence/result: `HANDOFF.md records scope, commits, verified work, strict E2E gates, and exact continuation conditions. Provider remains not production-ready without mutation E2E.`
-- Blocker: `No approved HSDB_TEST_SOURCE_COLLECTION, HSDB_TEST_COLLECTION, HSDB_TEST_OWNERSHIP_HMAC_KEY, or external HSDB_E2E_STATE_PATH.`
-- Next action: `Next session must read HANDOFF.md and PLAN.md, then run E2E only after explicit isolated authorization.`
+- Evidence/result: `90 passed in 3.60s through PTY with E2E runner excluded. Candidate scan examined 23 selected files and found no configured provider, token, RID, Bearer, or absolute-user-path pattern. No real E2E occurred.`
+- Blocker: `None for publication. Steps 26, 28, and 43 remain strict-E2E blocked and are not represented as production verification.`
+- Next action: `Selective stage, staged-diff review, commit, subtree split, forced target-main push, then remote readback.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1236,6 +1266,12 @@ fixture content, private collection names, or private absolute paths.
 | 41 | [x] | COMPLETE | STATIC_RELEASE_TESTED | 2026-08-11T08:37:18+02:00 | 2026-08-11T08:40:22+02:00 | 2026-08-11T08:40:22+02:00 | PLAN.md; Git state | final static release audit | diff check; tracked manifest; full pytest | exit 0; manifest 19 files, 85 full | No diff whitespace failures; tracked manifest has no runtime artifacts | Step 42 |
 | 42 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T08:38:34+02:00 | 2026-08-11T08:40:22+02:00 | 2026-08-11T08:40:22+02:00 | README.md; tests/run_test_collection_e2e.py; tests/ | E2E state isolation | release suite; full pytest | exit 0; 12 focused, 85 full | E2E needs external explicit ledger path; plugin state remains untouched | Step 43 |
 | 43 | [!] | BLOCKED | NOT_E2E_VERIFIED | 2026-08-11T08:40:22+02:00 | 2026-08-11T08:40:22+02:00 | - | strict isolated mutation E2E + production verdict | approved target/source/HMAC/state path | - | exit 1 expected at HMAC gate | No production/shared collection was touched; static hardening cannot substitute for E2E | Await explicitly isolated E2E configuration |
+| LUNA-1 | [x] | DONE | INTEGRATION_TESTED | 2026-08-11T09:05:26+02:00 | 2026-08-11T09:09:40+02:00 | 2026-08-11T09:09:40+02:00 | PLAN.md; PLAN-LUNA.md only | PTY local suite, then write PLAN-LUNA.md | 0 | 85 passed in 2.34s; PLAN-LUNA.md written and verified by write receipt. No real E2E runner, collection, or shared implementation/test/documentation file was changed. | User may launch Luna; base steps 26, 28, and 43 remain blocked. |
+| LUNA-2 | [x] | DONE | STATIC_CHECKED | 2026-08-11T09:51:41+02:00 | 2026-08-11T09:54:08+02:00 | 2026-08-11T09:54:08+02:00 | PLAN.md changed; LUNA-AUDIT-REPORT.md plus cited source/tests read only | Read report and validate current cited lines | 0 | Accepted L-03, L-04, L-06 as scoped gaps; L-05 restates blocked live-SDK evidence; rejected L-01, L-02, L-07; L-08 no defect. No implementation/test/E2E action. | Await explicit isolated E2E authorization or separately approved fix scope. |
+| L6-1 | [x] | DONE | INTEGRATION_TESTED | 2026-08-11T09:56:03+02:00 | 2026-08-11T10:15:02+02:00 | 2026-08-11T10:15:02+02:00 | PLAN.md; runner/test diff reviewed | Targeted guard suite, full PTY suite, scoped diff review | 0 | Guard rejects empty/relative/in-plugin paths and accepts external absolute path. 16 targeted passed in 1.51s; 89 full passed in 2.28s. RED phase not witnessed because changes pre-existed Terra's write attempt. No E2E runner invoked. | Strict E2E gates 26, 28, 43 remain blocked. |
+| L4-1 | [x] | DONE | INTEGRATION_TESTED | 2026-08-11T10:28:26+02:00 | 2026-08-11T10:55:55+02:00 | 2026-08-11T10:55:55+02:00 | PLAN.md; __init__.py; tests/test_public_release.py only | RED, targeted GREEN, privacy scan, full no-E2E PTY suite, diff review | 0 | RED witnessed; trusted_sources removal passed targeted GREEN. Current full suite: 90 passed in 3.60s. No E2E/backend action. | Publication is separately tracked as PUBLISH-1. |
+| PUBLISH-1 | [>] | IN_PROGRESS | INTEGRATION_TESTED | 2026-08-11T10:55:55+02:00 | 2026-08-11T10:55:55+02:00 | - | Reviewed PLUGIN_ROOT files only; local Git index and user-authorized target main | Public scan, current full suite, staged scope, commit, subtree push, remote readback | 0 | Candidate scan clean across 23 selected files; current full suite 90 passed in 3.60s. | Selectively stage current plugin artifact, commit, push target main, read remote tree. |
+| HANDOFF-2 | [x] | DONE | STATIC_CHECKED | 2026-08-11T10:22:57+02:00 | 2026-08-11T10:25:07+02:00 | 2026-08-11T10:25:07+02:00 | PLAN.md; HANDOFF-TERRA-2.md only | Current status/log plus handoff creation | 0 | Handoff write receipt verified. No source/test operation during transfer. | Next session resumes L4 RED and Git gate from handoff. |
 | A1 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | A2 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | A3 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1276,3 +1312,27 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T08:40:15+02:00 | 43 | VERIFY | Ran the runner with literal approval but unset test HMAC/state/source/target variables. | Exit 1 at HMAC gate before a client, collection, or mutation operation. | Retain NOT_E2E_VERIFIED verdict. |
 | 2026-08-11T08:40:22+02:00 | 43 | VERDICT | 85 fake/static tests and release gates are green, but payload-shape, relevance-distance calibration, and add/replace/remove integration are unmeasured. | Public release is not production-ready. | Stop optional work; wait for authorized isolated E2E. |
 | 2026-08-11T08:44:30+02:00 | HANDOFF | HANDOFF | Created `HANDOFF.md` with the complete compact continuation state after a clean scoped Git status and PTY full suite. | Next executor has explicit scope, evidence, commits, blockers, and tracker rules. | Read HANDOFF.md and PLAN.md before any action. |
+| 2026-08-11T09:05:26+02:00 | LUNA-1 | DECISION | User requested a separate GPT-5.6-Luna read-only adversarial audit plan and literal launch prompt. | Base tracker remains 40/43 with steps 26, 28, and 43 blocked; no implementation, optional capability, shared test, or E2E action is authorized. | Record a fresh PTY local-suite result, then write only PLAN-LUNA.md and update this ledger immediately. |
+| 2026-08-11T09:06:42+02:00 | LUNA-1 | TEST | Current full plugin suite ran through PTY using a fresh in-scope basetemp. | Exit 0; 85 passed in 2.34s. This is current fake/static integration evidence, not real-backend E2E evidence. | Create the bounded read-only Luna audit plan; retain the not-production-ready verdict. |
+| 2026-08-11T09:09:40+02:00 | LUNA-1 | HANDOFF | Created PLAN-LUNA.md under PLUGIN_ROOT only. It assigns Luna an independent read-only adversarial audit and permits writing only LUNA-AUDIT-REPORT.md. | Luna cannot alter source, PLAN.md, tests, shared docs, runtime state, configuration, collections, or E2E state. Base steps 26, 28, and 43 remain blocked. | User may start Luna with literal prompt; current production verdict remains not production ready. |
+| 2026-08-11T09:51:41+02:00 | LUNA-2 | DECISION | User reported the Luna audit complete. | Terra opens a separate evidence-review step before accepting any report finding or changing implementation/test state. | Read the report and validate each cited claim against current files. |
+| 2026-08-11T09:54:08+02:00 | LUNA-2 | REVIEW | Terra independently checked Luna report citations against current source/test/plan lines. | Accepted: L-03 malformed-row observability, L-04 unreachable trusted_sources branch, L-06 no runtime guard against an in-plugin E2E state path. Existing blockers: L-05. Rejected: L-01 because section 3 is historical while step 7 is closed, L-02 because test_p0_red_regressions exercises list stubs and swallowed telemetry, L-07 because 3.07s and 2.34s are distinct PTY runs. L-08 correctly found no defect. | Do not patch without a separate approved scope; strict E2E gates 26, 28, 43 remain blocked. |
+| 2026-08-11T09:56:03+02:00 | L6-1 | OPERATOR | User issued go-ahead for the L-06 remediation after its evidence review. | Scope frozen to runner, release test, and PLAN.md only; no backend/configuration/collection action is authorized. | Read live runner/test headers and implement the pure fail-closed state-path boundary. |
+| 2026-08-11T10:03:21+02:00 | L6-1 | CONCURRENT_STATE | Terra's PLAN patch found the L6 plan and runner/test diff already present with an earlier timestamp. | No stale overwrite occurred. Current diff was read and treated as un-attributed until directly tested. | Run targeted PTY test and record only observed evidence. |
+| 2026-08-11T10:05:35+02:00 | L6-1 | TEST | Targeted release/source-contract suite executed through PTY without bytecode or pytest cache writes. | Exit 0; 16 passed in 1.51s. L6 path guard behavior passed. RED phase remains unobserved due pre-existing concurrent changes. | Run full local PTY suite; do not invoke E2E. |
+| 2026-08-11T10:13:56+02:00 | L6-1 | TEST | Full local plugin suite executed through PTY with bytecode and pytest cache writes disabled and a fresh in-scope basetemp. | Exit 0; 89 passed in 2.28s. The E2E runner was not invoked; no backend, credential, collection, or runtime-state mutation occurred beyond isolated local test state. | Inspect scoped diff before marking L6 complete. |
+| 2026-08-11T10:15:02+02:00 | L6-1 | REVIEW | Scoped runner/test diff and whitespace contract were reviewed after current full-suite evidence. | Diff contains only pure external-state-path validation, its pre-client invocation, and matching stubbed contract tests. `git diff --check` exit 0. No secret, client construction, backend call, or mutation path added by the guard. | Mark L6 static preflight hardening complete; strict E2E remains blocked. |
+| 2026-08-11T10:17:11+02:00 | L4-1 | OPERATOR | User directed continued execution after L6 completion. | Scope frozen to PLAN.md, __init__.py, and tests/test_public_release.py for removal of unreachable trusted_sources code only. No E2E, backend, config, collection, or optional work is authorized. | TDD RED test through PTY, then minimal source removal. |
+| 2026-08-11T10:22:57+02:00 | L4-1 | TOOLING | A malformed patch invocation returned `patch content required`. | Tool reported no file modification; the planned L4 test remains absent. | Preserve the failed attempt, pause L4 for user-requested handoff, and resume with RED test next session. |
+| 2026-08-11T10:22:57+02:00 | HANDOFF-2 | OPERATOR | User requested a next-session handoff and reminded that Git commit discipline is required. | Do not commit un-attributed current L6 diff blindly. Next session must review scoped diff, run/retain tests, selectively stage only approved plugin files, verify staged scope, then commit. | Create handoff with exact Git gate and literal next-session prompt. |
+| 2026-08-11T10:25:07+02:00 | HANDOFF-2 | HANDOFF | Created HANDOFF-TERRA-2.md under PLUGIN_ROOT only. | It records current Git state, L6 evidence, L4 exact RED-GREEN sequence, strict E2E prohibition, and selective Git commit gate. No source/test/E2E operation occurred during transfer. | User may launch next Terra session with literal prompt. |
+| 2026-08-11T10:28:26+02:00 | L4-1 | DECISION | Read all mandated handoff documents and observed scoped Git status, diff names, and eight scoped commits before a write. | L4 set to IN_PROGRESS; source and test remain untouched. | Run fresh PTY local suite with a new in-scope basetemp; never invoke E2E. |
+| 2026-08-11T10:30:24+02:00 | L4-1 | TEST | Current full local suite ran through PTY with bytecode and pytest cache writes disabled; E2E runner was explicitly ignored. | Exit 0; 89 passed in 3.88s. This is fake/static integration evidence only and does not test L4 behavior or real backend paths. | Add required RED source-contract test before changing __init__.py. |
+| 2026-08-11T10:33:58+02:00 | L4-1 | DECISION | Exact required L4 source-contract test was already present in the uncommitted public-release diff. User confirmed no other live editor will modify PLUGIN_ROOT. | No duplicate test was added; source remains unchanged. Direct test-first authorship is unavailable. | Run only the existing L4 test through PTY and require expected RED before source edit. |
+| 2026-08-11T10:34:29+02:00 | L4-1 | TEST | Targeted public-surface contract ran through PTY with bytecode and pytest cache writes disabled. | Exit 1 was expected: 1 failed in 0.45s because trusted_sources remains in __init__.py. No E2E runner or backend path was invoked. | Apply minimal source removal; do not alter result provenance metadata. |
+| 2026-08-11T10:36:21+02:00 | L4-1 | PATCH | Applied a bounded source-only removal after the witnessed RED. | Removed trusted_sources config/default state, trusted_claim, unreachable branch, and obsolete fallback wording; source/trust result metadata retained. | Run targeted GREEN through PTY. |
+| 2026-08-11T10:38:18+02:00 | L4-1 | TEST | Re-ran the same targeted public-surface contract through PTY after the minimal source removal. | Exit 0; 1 passed in 0.67s. This is unit evidence only; no E2E runner or backend path was invoked. | Run full local no-E2E PTY suite. |
+| 2026-08-11T10:39:56+02:00 | L4-1 | TEST | Full local suite ran through PTY with bytecode and pytest cache writes disabled; E2E runner was explicitly ignored. | Exit 1: 89 passed, 1 public-release privacy-scan failure caused by PLAN.md private identifiers. | Scrub PLAN.md only, then rerun focused release scan and full suite. |
+| 2026-08-11T10:41:38+02:00 | L4-1 | TEST | Focused public-release privacy scan ran through PTY after PLAN.md command evidence was neutralized. | Exit 0; 1 passed in 0.81s. No E2E runner or real backend path was invoked. | Run full local no-E2E PTY suite. |
+| 2026-08-11T10:43:07+02:00 | L4-1 | TEST | Full local suite ran through PTY with bytecode and pytest cache writes disabled; E2E runner was explicitly ignored. | Exit 0; 90 passed in 3.79s. This is current fake/static integration evidence only, not real-backend E2E. | Run scoped diff check/review before selective staging. |
+| 2026-08-11T10:55:55+02:00 | PUBLISH-1 | OPERATOR | User explicitly directed replacement of the public target v1 with the current plugin artifact. | Target public visibility was observed before outbound action; candidate scan across 23 selected files was clean and current no-E2E suite passed 90 in 3.60s. | Selectively stage, commit, replace target main, and verify remote readback. |

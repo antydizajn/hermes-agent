@@ -1,6 +1,11 @@
+import importlib.util
 from pathlib import Path
 import subprocess
 import re
+import sys
+import types
+
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +81,11 @@ def test_readme_matches_collection_contract_configuration():
     assert "`trusted_sources`" not in text
 
 
+def test_provider_has_no_dead_trusted_sources_policy():
+    source = (ROOT / "__init__.py").read_text(encoding="utf-8")
+    assert "trusted_sources" not in source
+
+
 def test_readme_documents_hmac_environment_boundary():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "ownership_hmac_key_env" in text
@@ -99,6 +109,41 @@ def test_e2e_runner_requires_explicit_approval_and_test_hmac_before_client_creat
     assert "HSDB_E2E_STATE_PATH" in text
     assert "hsdb_e2e_" in text
     assert text.index('approval != "approved"') < text.index("client = HyperspaceClient")
+    assert text.index('state_path = require_external_state_path') < text.index("client = HyperspaceClient")
+
+
+def _load_e2e_runner(monkeypatch):
+    fake_hyperspace = types.ModuleType("hyperspace")
+    fake_hyperspace.HyperspaceClient = object
+    module_name = "hyperspace_e2e_runner_under_test"
+    monkeypatch.setitem(sys.modules, "hyperspace", fake_hyperspace)
+    monkeypatch.delitem(sys.modules, module_name, raising=False)
+    runner_path = ROOT / "tests" / "run_test_collection_e2e.py"
+    spec = importlib.util.spec_from_file_location(module_name, runner_path)
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, module_name, module)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("state_path", ["", "relative/ledger.sqlite3"])
+def test_e2e_state_path_guard_rejects_empty_or_relative_path(monkeypatch, state_path):
+    runner = _load_e2e_runner(monkeypatch)
+    with pytest.raises(SystemExit):
+        runner.require_external_state_path(state_path)
+
+
+def test_e2e_state_path_guard_rejects_path_under_plugin_root(monkeypatch):
+    runner = _load_e2e_runner(monkeypatch)
+    with pytest.raises(SystemExit):
+        runner.require_external_state_path(str(ROOT / "state" / "e2e.sqlite3"))
+
+
+def test_e2e_state_path_guard_accepts_absolute_external_path(monkeypatch):
+    runner = _load_e2e_runner(monkeypatch)
+    external = ROOT.parent / "e2e-runtime" / "ledger.sqlite3"
+    assert Path(runner.require_external_state_path(str(external))) == external.resolve()
 
 
 def test_tracked_release_manifest_excludes_runtime_artifacts():

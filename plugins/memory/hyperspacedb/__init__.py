@@ -826,10 +826,6 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             str(item).strip() for item in configured_allowed if str(item).strip()
         }
         self._trust_mode = str(self._config.get("trust_mode") or "owned_only").strip()
-        trusted = self._config.get("trusted_sources") or [
-            "hermes-builtin-memory", "hermes-explicit-tool"
-        ]
-        self._trusted_sources = {str(item) for item in trusted}
         self._metric = str(self._config.get("metric") or "lorentz").strip().lower()
         self._configured_metric = self._metric
         self._expected_dimension = _bounded_int(self._config.get("expected_dimension"), 0, 0, 65_536)
@@ -1163,15 +1159,12 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             source = str(meta.get("source") or "unknown")[:200]
             trust = str(meta.get("trust") or "unknown")[:100]
             authenticated_owner = self._point_owner_matches(raw, str(meta.get("_hs_digest") or ""))
-            trusted_claim = trust in {"builtin-curated", "user-explicit", "operator-verified"}
             if self._trust_mode == "owned_only":
                 allowed = authenticated_owner
-            elif self._trust_mode == "trusted_sources":
-                allowed = authenticated_owner or (source in self._trusted_sources and trusted_claim)
             elif self._trust_mode == "annotate_all":
                 allowed = True
             else:
-                raise ConfigurationError("trust_mode must be owned_only, trusted_sources, or annotate_all")
+                raise ConfigurationError("trust_mode must be owned_only or annotate_all")
             normalized.append({
                 "id": raw.get("id"),
                 "content": content,
