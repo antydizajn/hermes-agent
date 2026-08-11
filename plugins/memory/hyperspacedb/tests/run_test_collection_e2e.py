@@ -3,6 +3,7 @@
 Required environment:
 - HSDB_E2E_WRITE_APPROVED: literal `approved` acknowledgment for this dedicated target
 - HSDB_TEST_OWNERSHIP_HMAC_KEY: non-production ownership HMAC key
+- HSDB_E2E_STATE_PATH: explicit temporary local ledger location outside this plugin directory
 - HSDB_TEST_SOURCE_COLLECTION: existing read-only fixture source
 - HSDB_TEST_COLLECTION: dedicated target collection prefixed `hsdb_e2e_`
 
@@ -72,6 +73,9 @@ def main():
     ownership_key = os.environ.get("HSDB_TEST_OWNERSHIP_HMAC_KEY", "").strip()
     if not ownership_key:
         raise SystemExit("HSDB_TEST_OWNERSHIP_HMAC_KEY is required for authenticated E2E writes")
+    state_path = os.environ.get("HSDB_E2E_STATE_PATH", "").strip()
+    if not state_path:
+        raise SystemExit("HSDB_E2E_STATE_PATH is required; do not write E2E state into this plugin")
     source = os.environ.get("HSDB_TEST_SOURCE_COLLECTION", "").strip()
     target = os.environ.get("HSDB_TEST_COLLECTION", "").strip()
     if not source or not target or source == target:
@@ -156,7 +160,7 @@ def main():
             "api_key_env": "HYPERSPACE_API_KEY",
             "user_id_env": "HYPERSPACE_USER_ID",
             "ownership_hmac_key_env": "HSDB_TEST_OWNERSHIP_HMAC_KEY",
-            "state_path": str(ROOT / "state" / "test-collection-e2e.sqlite3"),
+            "state_path": state_path,
             "profile_scope": "e2e-test-scope",
             "trust_mode": "annotate_all",
             "rpc_timeout": 4.0,

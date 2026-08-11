@@ -1158,33 +1158,33 @@ This section must be updated live. A final bulk update is forbidden.
 ### CURRENT EXECUTION STATE
 
 - Current phase: `PHASE B - CLOSE P0-A THROUGH P0-H`
-- Active step: `41`
-- Base progress: `38/43 tracked steps completed; steps 26 and 28 remain evidence-blocked`
+- Active step: `43 [!]`
+- Base progress: `40/43 tracked steps completed; strict E2E gates 26, 28, and 43 remain blocked`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T08:37:18+02:00`
+- Last PLAN.md update UTC: `2026-08-11T08:40:22+02:00`
 - Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
 - Current blocker: `NONE RECORDED`
-- Immediate next action: `Run final static release gate and record residual E2E blockers.`
+- Immediate next action: `Await approved isolated E2E credentials; do not run mutations elsewhere.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `41`
-- Goal: `Close remaining non-E2E release gates without overstating production readiness.`
-- Why now / dependency satisfied: `Step 40 tracked manifest gate is green.`
+- Step ID: `43 [!]`
+- Goal: `Strict isolated E2E write and final production verdict.`
+- Why now / dependency satisfied: `All static/release work is complete; E2E has multiple verified pre-write gates.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T08:37:18+02:00`
-- Last updated UTC: `2026-08-11T08:37:18+02:00`
-- Files/scope: `PLAN.md; README.md; tests/`
-- Intended acceptance test: `Final static test suite plus clean scoped Git state.`
-- Latest command/observation: `Step 40 release suite: 11 passed; full pytest: 84 passed.`
+- Started UTC: `2026-08-11T08:40:22+02:00`
+- Last updated UTC: `2026-08-11T08:40:22+02:00`
+- Files/scope: `PLAN.md; tests/run_test_collection_e2e.py`
+- Intended acceptance test: `Authorized add/replace/remove E2E against a dedicated hsdb_e2e_ collection.`
+- Latest command/observation: `Approval-only E2E probe: exit 1 at missing test HMAC gate, before client creation.`
 - Exit code: `0`
-- Evidence/result: `Steps 35-40 complete; now prepare an honest release-gate verdict.`
-- Blocker: `Strict E2E mutations await approved test source/target and non-production HMAC credentials.`
-- Next action: `Run final static release audit.`
+- Evidence/result: `Static release gate clean and 85 tests pass, but provider is not production-ready without mutation E2E.`
+- Blocker: `No approved HSDB_TEST_SOURCE_COLLECTION, HSDB_TEST_COLLECTION, HSDB_TEST_OWNERSHIP_HMAC_KEY, or external HSDB_E2E_STATE_PATH.`
+- Next action: `Run strict E2E only after explicit isolated credentials are provided.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1233,9 +1233,9 @@ fixture content, private collection names, or private absolute paths.
 | 38 | [x] | INTEGRATION_TESTED | 2026-08-11T08:35:05+02:00 | 2026-08-11T08:35:42+02:00 | 2026-08-11T08:35:42+02:00 | tests/run_test_collection_e2e.py; tests/test_public_release.py | E2E pre-write guard | static runner gate; full pytest | exit 0; 10 focused, 83 full | E2E requires literal approval, non-prod HMAC, and hsdb_e2e_ target | Step 39 |
 | 39 | [x] | INTEGRATION_TESTED | 2026-08-11T08:35:36+02:00 | 2026-08-11T08:35:42+02:00 | 2026-08-11T08:35:42+02:00 | tests/run_test_collection_e2e.py | live no-approval fail-closed probe | isolated shell invocation | exit 1 expected | Runner stopped at approval gate before client construction or collection mutation | Step 40 |
 | 40 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T08:35:42+02:00 | 2026-08-11T08:37:18+02:00 | 2026-08-11T08:37:18+02:00 | tests/test_public_release.py | tracked release manifest | release suite; full pytest | exit 0; 11 focused, 84 full | Git tracked manifest excludes state, SQLite, and bytecode artifacts | Step 41 |
-| 41 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T08:37:18+02:00 | 2026-08-11T08:37:18+02:00 | - | final static release audit | - | Pending | - | Run final static gate and record honest residual blocker state |
-| 42 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 43 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| 41 | [x] | COMPLETE | STATIC_RELEASE_TESTED | 2026-08-11T08:37:18+02:00 | 2026-08-11T08:40:22+02:00 | 2026-08-11T08:40:22+02:00 | PLAN.md; Git state | final static release audit | diff check; tracked manifest; full pytest | exit 0; manifest 19 files, 85 full | No diff whitespace failures; tracked manifest has no runtime artifacts | Step 42 |
+| 42 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T08:38:34+02:00 | 2026-08-11T08:40:22+02:00 | 2026-08-11T08:40:22+02:00 | README.md; tests/run_test_collection_e2e.py; tests/ | E2E state isolation | release suite; full pytest | exit 0; 12 focused, 85 full | E2E needs external explicit ledger path; plugin state remains untouched | Step 43 |
+| 43 | [!] | BLOCKED | NOT_E2E_VERIFIED | 2026-08-11T08:40:22+02:00 | 2026-08-11T08:40:22+02:00 | - | strict isolated mutation E2E + production verdict | approved target/source/HMAC/state path | - | exit 1 expected at HMAC gate | No production/shared collection was touched; static hardening cannot substitute for E2E | Await explicitly isolated E2E configuration |
 | A1 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | A2 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | A3 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1273,3 +1273,5 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T07:47:32+02:00 | 34 | TEST | Eager HMAC validation blocked read-only initialization and two existing lifecycle tests. | Removed eager validation; writes remain authenticated and fail closed at mutation time. | Mark Step 34 complete. |
 | 2026-08-11T08:35:36+02:00 | 39 | VERIFY | Ran the E2E runner with approval and all E2E identity variables deliberately unset. | Exit 1 at the literal approval guard; no client, collection, or write was reached. | Mark Step 39 complete. |
 | 2026-08-11T08:37:18+02:00 | 40 | VERIFY | Checked the actual Git tracked manifest rather than merely `.gitignore`. | 84 full tests pass and no runtime state, SQLite, or bytecode is tracked. | Mark Step 40 complete; checkpoint report due. |
+| 2026-08-11T08:40:15+02:00 | 43 | VERIFY | Ran the runner with literal approval but unset test HMAC/state/source/target variables. | Exit 1 at HMAC gate before a client, collection, or mutation operation. | Retain NOT_E2E_VERIFIED verdict. |
+| 2026-08-11T08:40:22+02:00 | 43 | VERDICT | 85 fake/static tests and release gates are green, but payload-shape, relevance-distance calibration, and add/replace/remove integration are unmeasured. | Public release is not production-ready. | Stop optional work; wait for authorized isolated E2E. |

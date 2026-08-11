@@ -173,6 +173,13 @@ The default suite uses a fake client and must not write to production. The
 read-only integration suite requires explicit environment variables. Mutation
 E2E requires a dedicated test collection and separate operator authorization.
 
+For the strict mutation runner, set all of these only for a non-production test:
+`HSDB_E2E_WRITE_APPROVED=approved`, `HSDB_TEST_OWNERSHIP_HMAC_KEY`,
+`HSDB_TEST_SOURCE_COLLECTION`, `HSDB_TEST_COLLECTION` (prefixed `hsdb_e2e_`),
+and `HSDB_E2E_STATE_PATH` outside this plugin directory. Then run
+`python tests/run_test_collection_e2e.py`. The runner leaves the isolated
+collection intact for operator inspection and never uses this plugin's `state/`.
+
 ## Honest limitations
 
 - HyperspaceDB's `uint32` ID API cannot make cross-process allocation races

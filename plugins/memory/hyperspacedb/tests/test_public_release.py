@@ -96,6 +96,7 @@ def test_e2e_runner_requires_explicit_approval_and_test_hmac_before_client_creat
     text = (ROOT / "tests" / "run_test_collection_e2e.py").read_text(encoding="utf-8")
     assert "HSDB_E2E_WRITE_APPROVED" in text
     assert "HSDB_TEST_OWNERSHIP_HMAC_KEY" in text
+    assert "HSDB_E2E_STATE_PATH" in text
     assert "hsdb_e2e_" in text
     assert text.index('approval != "approved"') < text.index("client = HyperspaceClient")
 
@@ -112,3 +113,9 @@ def test_tracked_release_manifest_excludes_runtime_artifacts():
     assert f"{prefix}/plugin.yaml" in tracked
     assert not any("/state/" in path for path in tracked)
     assert not any(path.endswith((".sqlite3", ".pyc")) for path in tracked)
+
+
+def test_e2e_runner_never_defaults_its_ledger_into_plugin_state():
+    text = (ROOT / "tests" / "run_test_collection_e2e.py").read_text(encoding="utf-8")
+    assert '"state_path": state_path' in text
+    assert 'ROOT / "state"' not in text
