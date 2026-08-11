@@ -42,6 +42,17 @@ _DEFAULT_MAX_TOOL_OUTPUT = 64_000
 _DEFAULT_MAX_PREFETCH = 12_000
 _DEFAULT_MAX_SEARCH_RESULTS = 50
 _DEFAULT_COLLISION_PROBES = 64
+
+_TOOL_ALLOWED_ARGS = {
+    "hyperspace_search": {"query", "limit"},
+    "hyperspace_store": {"content", "metadata"},
+    "hyperspace_status": set(),
+    "hyperspace_graph": {"operation", "start_id", "limit", "max_depth", "max_nodes", "collection"},
+    "hyperspace_hierarchy": {"operation", "root_id", "id", "limit", "max_depth", "collection"},
+    "hyperspace_clusters": {"max_clusters", "min_cluster_size", "max_nodes", "collection"},
+    "hyperspace_search_advanced": {"query", "mode", "top_k", "collection"},
+    "hyperspace_admin": {"operation", "collection"},
+}
 _RESERVED_META = {
     "_content", "_hs_owner", "_hs_digest", "_hs_profile", "_hs_schema",
     "source", "trust", "target", "ts", "timestamp", "record_id",
@@ -147,6 +158,17 @@ def _json(data: Dict[str, Any]) -> str:
     return json.dumps(data, ensure_ascii=True, sort_keys=True, default=str)
 
 
+def _safe_error_message(value: Any) -> str:
+    message = str(value)
+    patterns = (
+        r"(?i)(authorization\s*:\s*bearer\s+)[^\s,;]+",
+        r"(?i)((?:api[_-]?key|token|password|secret)\s*[:=]\s*)[^\s,;]+",
+    )
+    for pattern in patterns:
+        message = re.sub(pattern, lambda match: f"{match.group(1)}[REDACTED]", message)
+    return message[:1_000]
+
+
 def _bounded_tool_json(data: Dict[str, Any], max_chars: int) -> str:
     """Serialize a bounded tool response without cutting a JSON token stream."""
     budget = max(2, int(max_chars))
@@ -168,7 +190,7 @@ def _bounded_tool_json(data: Dict[str, Any], max_chars: int) -> str:
     return "{}"
 
 def _json_error(code: str, message: str) -> str:
-    return _json({"ok": False, "error": {"code": code, "message": message}})
+    return _json({"ok": False, "error": {"code": code, "message": _safe_error_message(message)}})
 
 
 def _decode_payload(value: Any) -> str:
@@ -1691,7 +1713,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                 self._ledger.failure_count() if self._ledger is not None else 0
             ),
             "last_error_code": self._last_error_code,
-            "last_error": self._last_error,
+            "last_error": _safe_error_message(self._last_error),
         }
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
@@ -1888,7 +1910,11 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         handler = handlers.get(tool_name)
         if handler is None:
             return _json_error("UNKNOWN_TOOL", f"Unknown tool: {tool_name}")
-        return handler(dict(args or {}))
+        supplied = dict(args or {})
+        unexpected = sorted(set(supplied) - _TOOL_ALLOWED_ARGS[tool_name])
+        if unexpected:
+            return _json_error("INVALID_ARGUMENT", "Unexpected tool argument(s): " + ", ".join(unexpected))
+        return handler(supplied)
 
     def backup_paths(self) -> List[str]:
         destination = self._state_path.with_suffix(".snapshot.sqlite3")

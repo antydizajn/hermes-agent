@@ -1158,33 +1158,33 @@ This section must be updated live. A final bulk update is forbidden.
 ### CURRENT EXECUTION STATE
 
 - Current phase: `PHASE B - CLOSE P0-A THROUGH P0-H`
-- Active step: `31`
-- Base progress: `28/43 tracked steps completed; 2 evidence-only steps blocked`
+- Active step: `33`
+- Base progress: `30/43 tracked steps completed; steps 26 and 28 remain evidence-blocked`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T07:22:52+02:00`
+- Last PLAN.md update UTC: `2026-08-11T07:28:22+02:00`
 - Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
 - Current blocker: `NONE RECORDED`
-- Immediate next action: `Audit lifecycle/observability contracts without changing Hermes core.`
+- Immediate next action: `Audit config schema and public setup documentation for fail-closed defaults.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `31`
-- Goal: `Validate remaining provider lifecycle and observability contract surfaces.`
-- Why now / dependency satisfied: `P1-H/I are covered by tests; this is the post-step-30 checkpoint continuation.`
+- Step ID: `33`
+- Goal: `Audit public configuration inputs and fail-closed setup documentation.`
+- Why now / dependency satisfied: `Lifecycle redaction and strict tool arguments are covered by 74 local tests.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T07:22:52+02:00`
-- Last updated UTC: `2026-08-11T07:22:52+02:00`
-- Files/scope: `PLAN.md; __init__.py; tests/`
-- Intended acceptance test: `Targeted lifecycle/observability tests and full local pytest.`
-- Latest command/observation: `P1-H/I focused suite: 15 passed; full pytest: 72 passed.`
+- Started UTC: `2026-08-11T07:28:22+02:00`
+- Last updated UTC: `2026-08-11T07:28:22+02:00`
+- Files/scope: `PLAN.md; plugin.yaml; README.md; tests/`
+- Intended acceptance test: `Schema/README consistency test plus full local pytest.`
+- Latest command/observation: `Step 32 focused suite: 11 passed; full pytest: 74 passed.`
 - Exit code: `0`
-- Evidence/result: `Steps 29-30 complete; one malformed external patch attempt was repaired and py_compile verified.`
-- Blocker: `Steps 26 and 28 remain blocked solely on authorized E2E data; no test endpoint has been approved.`
-- Next action: `Audit next base lifecycle item.`
+- Evidence/result: `Steps 31-32 complete and committed next; error output and status redact secret-like values.`
+- Blocker: `Only actual backend payload shape and distance calibration await an authorized isolated E2E endpoint.`
+- Next action: `Cross-check public configuration.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1223,9 +1223,9 @@ fixture content, private collection names, or private absolute paths.
 | 28 | [!] | BLOCKED | UNVERIFIED | 2026-08-11T07:17:40+02:00 | 2026-08-11T07:17:40+02:00 | - | P1-G relevance gate | calibrated distance distribution from authorized isolated E2E | - | - | No arbitrary Lorentz distance cutoff added | Needs actual result distances; proceed Step 29 |
 | 29 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:17:40+02:00 | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:22:52+02:00 | README.md; tests/test_public_release.py | P1-H plaintext ledger disclosure | focused release suite; full pytest | exit 0; 6 focused, 71 full | README states plaintext scope, permissions, and encryption boundary | Step 30 |
 | 30 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:20:23+02:00 | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:22:52+02:00 | __init__.py; tests/test_hermes_contract.py | P1-I tool trust boundary | focused tool suite; full pytest; py_compile | exit 0; 15 focused, 72 full | Search tools label retrieved content non-executable and reject unknown tool names | Step 31 |
-| 31 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:22:52+02:00 | - | lifecycle and observability audit | - | Pending | - | Continue base hardening |
-| 32 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 33 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| 31 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:28:22+02:00 | 2026-08-11T07:28:22+02:00 | __init__.py; tests/test_hermes_contract.py | error/status redaction | focused contract suite; full pytest | exit 0; 10 focused, 73 full | Secret-like strings are redacted from tool errors and status | Step 32 |
+| 32 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:27:44+02:00 | 2026-08-11T07:28:22+02:00 | 2026-08-11T07:28:22+02:00 | __init__.py; tests/test_hermes_contract.py | strict tool argument allowlist | focused contract suite; full pytest | exit 0; 11 focused, 74 full | Unknown tool arguments fail before handlers | Step 33 |
+| 33 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T07:28:22+02:00 | 2026-08-11T07:28:22+02:00 | - | public configuration/documentation audit | - | Pending | - | Cross-check schema, README, and manifest |
 | 34 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 35 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 36 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1268,3 +1268,5 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T07:17:40+02:00 | 28 | BLOCKER | Automatic relevance depends on actual backend distance scale, which has not been empirically authorized. | Retain existing optional `max_distance`; do not invent a default cutoff. | Resume only after isolated E2E. |
 | 2026-08-11T07:20:32+02:00 | 30 | TEST | Initial data-boundary test exposed an omitted advanced-search envelope. | Added the envelope; a failed external patch operation had prepended one gRPC log line to `__init__.py`, which was removed before compilation. | Keep direct py_compile in the gate. |
 | 2026-08-11T07:22:52+02:00 | 30 | CHECKPOINT | Numeric steps through 30 processed: 28 completed, 2 correctly blocked on authorized E2E evidence. | Latest local suite is 72 passed. | Commit post-P1 changes and proceed Step 31. |
+| 2026-08-11T07:28:22+02:00 | 31 | TEST | Initial redaction test expected a redaction marker from a generic backend error, but the classifier had already dropped the secret. | Retained generic-error safety test and added direct sanitizer test; fixed regex backreference using a lambda. | Mark Step 31 complete. |
+| 2026-08-11T07:28:22+02:00 | 32 | DECISION | JSON schemas alone are not a reliable runtime validation boundary. | Added fail-closed per-tool argument allowlist in the handler. | Mark Step 32 complete. |
