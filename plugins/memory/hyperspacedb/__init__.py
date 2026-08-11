@@ -789,6 +789,8 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         self._client = None
         self._client_fingerprint = ""
         self._client_lock = threading.RLock()
+        self._client_inflight: Dict[int, int] = {}
+        self._retired_clients: List[Any] = []
         self._ledger: Optional[IdentityLedger] = None
         self._write_queue: queue.Queue = queue.Queue(maxsize=self._queue_size)
         self._worker: Optional[threading.Thread] = None
@@ -874,17 +876,41 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         _install_deadlines(client, self._rpc_timeout)
         return client
 
+    def _retire_client_locked(self, client: Any) -> None:
+        if client is None:
+            return
+        if self._client_inflight.get(id(client), 0) > 0:
+            if all(item is not client for item in self._retired_clients):
+                self._retired_clients.append(client)
+            return
+        _close_client(client)
+
+    def _release_client(self, client: Any) -> None:
+        if client is None:
+            return
+        with self._client_lock:
+            count = self._client_inflight.get(id(client), 0)
+            if count <= 1:
+                self._client_inflight.pop(id(client), None)
+                if any(item is client for item in self._retired_clients):
+                    self._retired_clients = [item for item in self._retired_clients if item is not client]
+                    _close_client(client)
+            else:
+                self._client_inflight[id(client)] = count - 1
+
     def _get_client(self) -> Any:
         self._validate_config()
         fingerprint, api_key, user_id = self._current_fingerprint()
         with self._client_lock:
             if self._client is not None and fingerprint != self._client_fingerprint:
-                _close_client(self._client)
+                old = self._client
                 self._client = None
                 self._client_fingerprint = ""
+                self._retire_client_locked(old)
             if self._client is None:
                 self._client = self._build_client(api_key, user_id)
                 self._client_fingerprint = fingerprint
+            self._client_inflight[id(self._client)] = self._client_inflight.get(id(self._client), 0) + 1
             return self._client
 
     def _mark_error(self, error: ProviderError) -> None:
@@ -915,10 +941,13 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             self._mark_error(error)
             if isinstance(error, (BackendTimeout, BackendUnavailable, BackendAuthError)):
                 with self._client_lock:
-                    _close_client(self._client)
-                    self._client = None
-                    self._client_fingerprint = ""
+                    if self._client is client:
+                        self._client = None
+                        self._client_fingerprint = ""
+                    self._retire_client_locked(client)
             raise error from exc
+        finally:
+            self._release_client(client)
 
     def _probe_health(self) -> str:
         value = self._call("health_check")
@@ -1796,9 +1825,16 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                 self._last_error = "worker remained alive; client and ledger retained to avoid use-after-close"
                 return
         with self._client_lock:
-            _close_client(self._client)
+            current = self._client
             self._client = None
             self._client_fingerprint = ""
+            self._retire_client_locked(current)
+            for retired in list(self._retired_clients):
+                self._retire_client_locked(retired)
+            if self._client_inflight:
+                self._last_error_code = "SHUTDOWN_INFLIGHT"
+                self._last_error = "client close deferred until in-flight RPCs release"
+                return
         if self._ledger is not None:
             self._ledger.close()
             self._ledger = None

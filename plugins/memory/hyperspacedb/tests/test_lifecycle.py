@@ -24,7 +24,10 @@ def test_client_rotates_when_api_key_changes(plugin, tmp_path):
     p._config["api_key"] = "two"
     second = p._get_client()
     assert second is not first
+    assert first.closed is False
+    p._release_client(first)
     assert first.closed is True
+    p._release_client(second)
     p.shutdown()
 
 

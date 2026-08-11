@@ -1,4 +1,5 @@
 import pytest
+import threading
 
 
 def _pending_record(provider, fake_client):
@@ -76,3 +77,112 @@ def test_replace_failure_restores_old_record_to_active(plugin, provider, fake_cl
     fake_client.fail = None
     assert provider._ledger.get(old.digest).status == "active"
     assert old.external_id in fake_client.points
+
+
+class _RotatingClient:
+    def __init__(self, number):
+        self.number = number
+        self.closed = 0
+
+    def close(self):
+        self.closed += 1
+
+
+def test_rotation_defers_old_client_close_until_inflight_release(provider):
+    created = []
+
+    def factory(**kwargs):
+        client = _RotatingClient(len(created))
+        created.append(client)
+        return client
+
+    provider._client_factory = factory
+    provider._config["api_key"] = "first-test-key"
+    first = provider._get_client()
+    provider._config["api_key"] = "second-test-key"
+    second = provider._get_client()
+    assert first is not second
+    assert first.closed == 0
+    provider._release_client(second)
+    provider._release_client(first)
+    assert first.closed == 1
+    assert second.closed == 0
+
+
+def test_shutdown_defers_inflight_client_close(provider):
+    created = []
+
+    def factory(**kwargs):
+        client = _RotatingClient(len(created))
+        created.append(client)
+        return client
+
+    provider._client_factory = factory
+    client = provider._get_client()
+    provider.shutdown()
+    assert provider._last_error_code == "SHUTDOWN_INFLIGHT"
+    assert client.closed == 0
+    provider._release_client(client)
+    assert client.closed == 1
+
+
+class _BlockingClient(_RotatingClient):
+    def __init__(self, number):
+        super().__init__(number)
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    def search(self, **kwargs):
+        self.started.set()
+        assert self.release.wait(2.0)
+        return []
+
+
+def test_rotation_during_blocked_rpc_defers_close(provider):
+    created = []
+
+    def factory(**kwargs):
+        client = _BlockingClient(len(created))
+        created.append(client)
+        return client
+
+    provider._client_factory = factory
+    provider._config["api_key"] = "first-test-key"
+    outcome = []
+    thread = threading.Thread(target=lambda: outcome.append(provider._call("search")), daemon=True)
+    thread.start()
+    assert created[0].started.wait(1.0)
+    provider._config["api_key"] = "second-test-key"
+    second = provider._get_client()
+    assert second is not created[0]
+    assert created[0].closed == 0
+    created[0].release.set()
+    thread.join(2.0)
+    assert not thread.is_alive()
+    assert outcome == [[]]
+    assert created[0].closed == 1
+    provider._release_client(second)
+
+
+def test_shutdown_during_blocked_rpc_defers_close(provider):
+    created = []
+
+    def factory(**kwargs):
+        client = _BlockingClient(len(created))
+        created.append(client)
+        return client
+
+    provider._client_factory = factory
+    provider._config["api_key"] = "blocking-shutdown-key"
+    outcome = []
+    thread = threading.Thread(target=lambda: outcome.append(provider._call("search")), daemon=True)
+    thread.start()
+    assert created[0].started.wait(1.0)
+    provider.shutdown()
+    assert provider._last_error_code == "SHUTDOWN_INFLIGHT"
+    assert created[0].closed == 0
+    created[0].release.set()
+    thread.join(2.0)
+    assert not thread.is_alive()
+    assert outcome == [[]]
+    assert created[0].closed == 1

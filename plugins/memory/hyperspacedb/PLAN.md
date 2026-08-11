@@ -1158,33 +1158,33 @@ This section must be updated live. A final bulk update is forbidden.
 ### CURRENT EXECUTION STATE
 
 - Current phase: `PHASE B - CLOSE P0-A THROUGH P0-H`
-- Active step: `22`
-- Base progress: `21/43 tracked steps completed by next executor`
+- Active step: `23`
+- Base progress: `22/43 tracked steps completed by next executor`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T06:14:30+02:00`
+- Last PLAN.md update UTC: `2026-08-11T06:26:55+02:00`
 - Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
 - Current blocker: `NONE RECORDED`
-- Immediate next action: `Implement client-generation in-flight tracking and safe rotation/shutdown.`
+- Immediate next action: `Implement bounded startup reconciliation with attempt cap and persisted backoff.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `22`
-- Goal: `Prevent client close/rotation while an RPC is in flight.`
-- Why now / dependency satisfied: `Mutation transitions and recovery now have focused test evidence.`
+- Step ID: `23`
+- Goal: `Bound pending-delete reconciliation by persisted attempts and retry schedule.`
+- Why now / dependency satisfied: `Client generation rotation and shutdown are barrier-tested.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T06:14:30+02:00`
-- Last updated UTC: `2026-08-11T06:14:30+02:00`
-- Files/scope: `PLAN.md; __init__.py; tests/test_lifecycle.py`
-- Intended acceptance test: `Rotation and shutdown defer close until all client references release.`
-- Latest command/observation: `Full local pytest after state transitions: 58 passed in 0.83s.`
+- Started UTC: `2026-08-11T06:26:55+02:00`
+- Last updated UTC: `2026-08-11T06:26:55+02:00`
+- Files/scope: `PLAN.md; __init__.py; tests/test_mutation_recovery.py`
+- Intended acceptance test: `Startup performs only due signed reconciliation within a bounded attempt budget.`
+- Latest command/observation: `Barrier lifecycle suite: 10 passed; full local pytest: 62 passed.`
 - Exit code: `0`
-- Evidence/result: `Step 20 complete: INSERTING/ACTIVE/REPLACING/DELETE_PENDING/RETRY_PENDING/CONFLICT transitions are persisted; signed recovery is bounded.`
+- Evidence/result: `Step 22 complete: old client channel stays open during forced rotation/shutdown until blocked RPC releases.`
 - Blocker: `-`
-- Next action: `Add client in-flight references before deferred close.`
+- Next action: `Add persisted retry metadata and initialization budget gate.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1214,8 +1214,8 @@ fixture content, private collection names, or private absolute paths.
 | 19 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T06:00:16+02:00 | 2026-08-11T06:01:12+02:00 | __init__.py; tests/test_ledger_migrations.py | State permissions and symlink resistance | targeted permission pytest | exit 0; 4 passed | - | Step 20 |
 | 20 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:01:34+02:00 | 2026-08-11T06:14:30+02:00 | __init__.py; tests/test_mutation_recovery.py | Mutation state machine and unknown outcomes | py_compile; recovery suite; full pytest | exit 0; 6 focused, 58 full | Signed insert/deletion outcomes recover without duplicate insert or unsafe delete | Step 22 |
 | 21 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T06:08:20+02:00 | 2026-08-11T06:10:18+02:00 | __init__.py; tests/test_mutation_recovery.py | Bounded authenticated delete_pending reconciliation | targeted pytest | exit 0; 4 passed | Only signed record deleted; missing confirmed by health; forged is conflict; no key is inert | Step 20 |
-| 22 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T06:14:30+02:00 | 2026-08-11T06:14:30+02:00 | - | Client in-flight tracking and safe close | - | Pending | - | Add generation reference accounting |
-| 23 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| 22 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:14:30+02:00 | 2026-08-11T06:26:55+02:00 | 2026-08-11T06:26:55+02:00 | __init__.py; tests/test_lifecycle.py; tests/test_mutation_recovery.py | Client generation in-flight safety | py_compile; barrier suite; full pytest | exit 0; 10 focused, 62 full | Rotation and shutdown defer close until blocked RPC releases | Step 23 |
+| 23 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T06:26:55+02:00 | 2026-08-11T06:26:55+02:00 | - | P1-A persisted bounded reconciliation | - | Pending | - | Add attempt cap and due-time gate |
 | 24 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 25 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 26 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1256,3 +1256,5 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T06:10:18+02:00 | 21 | DECISION | User required git commits limited to this plugin. | Stage/commit only plugin paths after an evidence-backed batch. | Run full suite, inspect scoped diff, then create scoped commit. |
 | 2026-08-11T06:11:50+02:00 | 20/21 | GIT | Scoped plugin-only baseline committed after full fake suite. | Commit 0775d5948 contains only 18 plugin source/docs/test files; runtime state was excluded. | Continue Step 20; stage only explicit plugin source paths for later commits. |
 | 2026-08-11T06:14:30+02:00 | 20 | TEST | State transitions and recovery tested on fake backend. | 6 focused tests and 58 full tests passed; no real backend mutated. | Begin lifecycle generation safety. |
+| 2026-08-11T06:24:50+02:00 | 22 | TEST | Existing lifecycle test expected immediate close after direct client acquisition. | Test failed because direct acquisition is now a lease; revised it to release before close assertion. | Barrier tests added, then full suite rerun. |
+| 2026-08-11T06:26:55+02:00 | 22 | TEST | Barrier rotation/shutdown lifecycle cases passed. | 10 focused tests and 62 full tests pass; fake backend only. | Begin P1-A bounded retry persistence. |
