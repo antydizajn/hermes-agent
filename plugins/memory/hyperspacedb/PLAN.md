@@ -1158,33 +1158,33 @@ This section must be updated live. A final bulk update is forbidden.
 ### CURRENT EXECUTION STATE
 
 - Current phase: `PHASE B - CLOSE P0-A THROUGH P0-H`
-- Active step: `24`
-- Base progress: `23/43 tracked steps completed by next executor`
+- Active step: `31`
+- Base progress: `28/43 tracked steps completed; 2 evidence-only steps blocked`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T06:42:40+02:00`
+- Last PLAN.md update UTC: `2026-08-11T07:22:52+02:00`
 - Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
 - Current blocker: `NONE RECORDED`
-- Immediate next action: `Close P1-B with an explicit no-replay operator contract.`
+- Immediate next action: `Audit lifecycle/observability contracts without changing Hermes core.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `24`
-- Goal: `Document and test the bounded operator-reconciliation boundary for failed mutations.`
-- Why now / dependency satisfied: `P1-A persists bounded due-time and attempt-cap state.`
+- Step ID: `31`
+- Goal: `Validate remaining provider lifecycle and observability contract surfaces.`
+- Why now / dependency satisfied: `P1-H/I are covered by tests; this is the post-step-30 checkpoint continuation.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T06:42:40+02:00`
-- Last updated UTC: `2026-08-11T06:42:40+02:00`
-- Files/scope: `PLAN.md; README.md; tests/test_public_release.py`
-- Intended acceptance test: `Public docs do not claim automatic eventual consistency or replay.`
-- Latest command/observation: `P1-A migrations and retry suite: 16 passed; full local pytest: 64 passed.`
+- Started UTC: `2026-08-11T07:22:52+02:00`
+- Last updated UTC: `2026-08-11T07:22:52+02:00`
+- Files/scope: `PLAN.md; __init__.py; tests/`
+- Intended acceptance test: `Targeted lifecycle/observability tests and full local pytest.`
+- Latest command/observation: `P1-H/I focused suite: 15 passed; full pytest: 72 passed.`
 - Exit code: `0`
-- Evidence/result: `Step 23 complete: retries persist in schema v2, exponential delay is bounded, and startup reconciliation has a time budget.`
-- Blocker: `-`
-- Next action: `Document failed-mutation no-replay boundary.`
+- Evidence/result: `Steps 29-30 complete; one malformed external patch attempt was repaired and py_compile verified.`
+- Blocker: `Steps 26 and 28 remain blocked solely on authorized E2E data; no test endpoint has been approved.`
+- Next action: `Audit next base lifecycle item.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1216,14 +1216,14 @@ fixture content, private collection names, or private absolute paths.
 | 21 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T06:08:20+02:00 | 2026-08-11T06:10:18+02:00 | __init__.py; tests/test_mutation_recovery.py | Bounded authenticated delete_pending reconciliation | targeted pytest | exit 0; 4 passed | Only signed record deleted; missing confirmed by health; forged is conflict; no key is inert | Step 20 |
 | 22 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:14:30+02:00 | 2026-08-11T06:26:55+02:00 | 2026-08-11T06:26:55+02:00 | __init__.py; tests/test_lifecycle.py; tests/test_mutation_recovery.py | Client generation in-flight safety | py_compile; barrier suite; full pytest | exit 0; 10 focused, 62 full | Rotation and shutdown defer close until blocked RPC releases | Step 23 |
 | 23 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:26:55+02:00 | 2026-08-11T06:42:40+02:00 | 2026-08-11T06:42:40+02:00 | __init__.py; tests/test_ledger_migrations.py; tests/test_mutation_recovery.py | P1-A persisted bounded reconciliation | py_compile; P1-A suite; full pytest | exit 0; 16 focused, 64 full | Schema v2 persists retry count and due time; startup budget and cap prevent unbounded replay | Step 24 |
-| 24 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T06:42:40+02:00 | 2026-08-11T06:42:40+02:00 | - | P1-B failed mutation replay contract | - | Pending | - | Document explicit operator-only reconciliation boundary |
-| 25 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 26 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 27 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 28 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 29 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 30 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 31 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| 24 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T06:42:40+02:00 | 2026-08-11T07:08:42+02:00 | 2026-08-11T07:08:42+02:00 | README.md; tests/test_public_release.py | P1-B failed-mutation replay boundary | public docs test; full pytest | exit 0; 4 focused, 65 full | Docs state no add/replace replay and no eventual-consistency claim | Step 25 |
+| 25 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:44:05+02:00 | 2026-08-11T07:08:42+02:00 | 2026-08-11T07:08:42+02:00 | __init__.py; tests/test_hermes_contract.py | P1-C/D discovery and collection contract | real discovery probe; contract suite; full pytest | exit 0; 8 focused, 69 full | Setup discovers unconfigured provider; metric/dimension mismatch blocks reads and writes | Step 26 |
+| 26 | [!] | BLOCKED | UNVERIFIED | 2026-08-11T07:08:42+02:00 | 2026-08-11T07:08:42+02:00 | - | P1-E payload duplication decision | authorized isolated E2E payload inspection | - | - | Cannot decide metadata content removal without live response shapes | Approved isolated E2E endpoint required; proceed Step 27 |
+| 27 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:08:42+02:00 | 2026-08-11T07:17:40+02:00 | 2026-08-11T07:17:40+02:00 | .gitignore; tests/test_public_release.py | P1-F release artifact hygiene | focused release suite; full pytest | exit 0; 5 focused, 70 full | Runtime state now ignored without deleting existing artifacts | Step 28 |
+| 28 | [!] | BLOCKED | UNVERIFIED | 2026-08-11T07:17:40+02:00 | 2026-08-11T07:17:40+02:00 | - | P1-G relevance gate | calibrated distance distribution from authorized isolated E2E | - | - | No arbitrary Lorentz distance cutoff added | Needs actual result distances; proceed Step 29 |
+| 29 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:17:40+02:00 | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:22:52+02:00 | README.md; tests/test_public_release.py | P1-H plaintext ledger disclosure | focused release suite; full pytest | exit 0; 6 focused, 71 full | README states plaintext scope, permissions, and encryption boundary | Step 30 |
+| 30 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:20:23+02:00 | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:22:52+02:00 | __init__.py; tests/test_hermes_contract.py | P1-I tool trust boundary | focused tool suite; full pytest; py_compile | exit 0; 15 focused, 72 full | Search tools label retrieved content non-executable and reject unknown tool names | Step 31 |
+| 31 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:22:52+02:00 | - | lifecycle and observability audit | - | Pending | - | Continue base hardening |
 | 32 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 33 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 34 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1261,3 +1261,10 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T06:27:40+02:00 | 22 | GIT | Scoped lifecycle hardening committed. | Commit 71b9e8fd1 contains only plugin source, tests, and tracker; runtime state remains excluded. | Continue Step 23 with persisted bounded retry design. |
 | 2026-08-11T06:31:20+02:00 | BASE | OPERATOR | User requires uninterrupted execution with an explicit report every 10 tracked points. | Continue silently until checkpoint 30, then 40, then base completion; keep PLAN live and commit scoped batches. | Implement Step 23. |
 | 2026-08-11T06:42:40+02:00 | 23 | TEST | Persisted retry/backoff and schema upgrade tested. | 16 focused tests and 64 full tests passed on fake backend; no external endpoint invoked. | Close P1-B documentation boundary. |
+| 2026-08-11T06:57:13+02:00 | 25 | TEST | Initial metric contract tests exposed missing dimension fallback and degraded rather than configuration health. | Repaired fallback and status semantics; 69 full tests pass. | Mark Step 25 complete. |
+| 2026-08-11T07:08:42+02:00 | 26 | BLOCKER | Payload duplication requires actual current server responses to decide safely. | No source removal based on intuition; status remains not E2E verified. | Continue non-E2E release hygiene. |
+| 2026-08-11T06:46:06+02:00 | BASE | OPERATOR | Delegate only genuinely easy missions to GPT-5.6-Luna while current context budget is constrained. | Current P1-D was a critical fail-closed code path and remained local. | Route later mechanical review only if Luna invocation is verifiably available. |
+| 2026-08-11T07:17:40+02:00 | 27 | DECISION | Runtime `state/` existed but must neither be deleted nor committed. | Added ignore rules and a Git behavior test; artifacts remain untouched. | Mark Step 27 complete. |
+| 2026-08-11T07:17:40+02:00 | 28 | BLOCKER | Automatic relevance depends on actual backend distance scale, which has not been empirically authorized. | Retain existing optional `max_distance`; do not invent a default cutoff. | Resume only after isolated E2E. |
+| 2026-08-11T07:20:32+02:00 | 30 | TEST | Initial data-boundary test exposed an omitted advanced-search envelope. | Added the envelope; a failed external patch operation had prepended one gRPC log line to `__init__.py`, which was removed before compilation. | Keep direct py_compile in the gate. |
+| 2026-08-11T07:22:52+02:00 | 30 | CHECKPOINT | Numeric steps through 30 processed: 28 completed, 2 correctly blocked on authorized E2E evidence. | Latest local suite is 72 passed. | Commit post-P1 changes and proceed Step 31. |

@@ -94,6 +94,16 @@ Cross-system atomic transactions are impossible with the current Hermes and
 HyperspaceDB contracts. The ledger makes divergence visible and reconcilable;
 it does not pretend to provide distributed ACID semantics.
 
+### Failed mutation boundary
+
+The provider does not replay failed `add` or `replace` events from Hermes files.
+It records the failure locally and requires an operator to reconcile the primary
+Hermes memory state before intentionally reissuing the mutation. The only
+automatic reconciliation is bounded `delete_pending` recovery: it runs only
+when the remote point has authenticated provider ownership, honors persisted
+attempt/backoff limits, and never rebuilds content from a substring match. The
+plugin therefore does not claim automatic eventual consistency after a crash.
+
 ## Retrieval and trust
 
 Automatic prefetch is dangerous because Hermes currently injects the provider's
@@ -109,6 +119,10 @@ returned string as authoritative reference context. This plugin therefore:
 
 `owned_only` is the recommended public default. `annotate_all` exists for
 mixed-producer migration but expands the trust surface.
+
+## Local ledger confidentiality
+
+The identity ledger is a local SQLite file containing plaintext memory content needed for deterministic replace and delete operations. The provider creates its ledger directory with mode `0700` and its SQLite file with mode `0600`; these POSIX permissions reduce local-account exposure but are not encryption at rest. Deployments requiring encrypted storage must provide host or volume encryption. The plugin does not claim to encrypt the ledger and does not place API keys in it.
 
 ## Tools
 
