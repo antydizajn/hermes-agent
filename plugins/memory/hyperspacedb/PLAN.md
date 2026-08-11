@@ -1161,7 +1161,7 @@ This section must be updated live. A final bulk update is forbidden.
 - Active step: `23`
 - Base progress: `22/43 tracked steps completed by next executor`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T06:26:55+02:00`
+- Last PLAN.md update UTC: `2026-08-11T06:27:40+02:00`
 - Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
 - Current blocker: `NONE RECORDED`
 - Immediate next action: `Implement bounded startup reconciliation with attempt cap and persisted backoff.`
@@ -1177,10 +1177,10 @@ NONE` while any row is `[>]`.
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
 - Started UTC: `2026-08-11T06:26:55+02:00`
-- Last updated UTC: `2026-08-11T06:26:55+02:00`
+- Last updated UTC: `2026-08-11T06:27:40+02:00`
 - Files/scope: `PLAN.md; __init__.py; tests/test_mutation_recovery.py`
 - Intended acceptance test: `Startup performs only due signed reconciliation within a bounded attempt budget.`
-- Latest command/observation: `Barrier lifecycle suite: 10 passed; full local pytest: 62 passed.`
+- Latest command/observation: `Step 22 committed after barrier suite; full local pytest: 62 passed in 0.93s.`
 - Exit code: `0`
 - Evidence/result: `Step 22 complete: old client channel stays open during forced rotation/shutdown until blocked RPC releases.`
 - Blocker: `-`
@@ -1258,3 +1258,4 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T06:14:30+02:00 | 20 | TEST | State transitions and recovery tested on fake backend. | 6 focused tests and 58 full tests passed; no real backend mutated. | Begin lifecycle generation safety. |
 | 2026-08-11T06:24:50+02:00 | 22 | TEST | Existing lifecycle test expected immediate close after direct client acquisition. | Test failed because direct acquisition is now a lease; revised it to release before close assertion. | Barrier tests added, then full suite rerun. |
 | 2026-08-11T06:26:55+02:00 | 22 | TEST | Barrier rotation/shutdown lifecycle cases passed. | 10 focused tests and 62 full tests pass; fake backend only. | Begin P1-A bounded retry persistence. |
+| 2026-08-11T06:27:40+02:00 | 22 | GIT | Scoped lifecycle hardening committed. | Commit 71b9e8fd1 contains only plugin source, tests, and tracker; runtime state remains excluded. | Continue Step 23 with persisted bounded retry design. |
