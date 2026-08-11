@@ -46,6 +46,7 @@ memory:
     trust_mode: owned_only
     api_key_env: HYPERSPACE_API_KEY
     user_id_env: HYPERSPACE_USER_ID
+    ownership_hmac_key_env: HYPERSPACE_OWNERSHIP_HMAC_KEY
 ```
 
 `collection` is required. There is deliberately no private or deployment-
@@ -56,12 +57,13 @@ specific collection default.
 - `host`: gRPC endpoint. Plaintext remote endpoints are rejected by default.
 - `collection`: one existing physical collection used by this provider.
 - `metric`: vectorization metric; `lorentz` is the default.
+- `expected_dimension`: optional exact collection dimension. Leave at `0` only when the backend cannot report a stable dimension; otherwise a mismatch fails closed.
+- `ownership_hmac_key_env`: environment variable for the secret used to authenticate provider-owned records. It is required before authenticated writes can succeed; configure it before enabling `auto_store`, and do not put the key in a public configuration file.
 - `rpc_timeout`: clamped to 0.1-7.0 seconds so Hermes prefetch remains bounded.
 - `state_path`: optional SQLite identity ledger path. The default is derived
   from the active Hermes home, not from a hardcoded user path.
 - `auto_store`: mirrors curated built-in memory writes.
 - `trust_mode`: `owned_only` or `annotate_all` for automatic prefetch.
-- `trusted_sources`: additional source labels allowed by `owned_only`.
 - `max_distance`: optional deployment-calibrated rejection threshold. There is
   no guessed universal threshold because distance distributions are metric and
   corpus dependent.

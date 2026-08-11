@@ -67,3 +67,15 @@ def test_readme_discloses_plaintext_ledger_and_permission_boundary():
     assert "mode `0700`" in text
     assert "mode `0600`" in text
     assert "not encryption at rest" in text
+
+
+def test_readme_matches_collection_contract_configuration():
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "`expected_dimension`" in text
+    assert "`trusted_sources`" not in text
+
+
+def test_readme_documents_hmac_environment_boundary():
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "ownership_hmac_key_env" in text
+    assert "do not put the key in a public configuration file" in text

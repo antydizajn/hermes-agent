@@ -102,3 +102,39 @@ def test_tool_boundary_rejects_unknown_arguments_before_handler(provider):
         "content": "explicit tool content", "metadata": {"tag": "allowed"}
     }))
     assert accepted["ok"] is True
+
+
+def test_setup_schema_exposes_collection_contract_controls(plugin):
+    keys = {item["key"] for item in plugin.HyperspaceDBMemoryProvider().get_config_schema()}
+    assert {"collection", "metric", "expected_dimension", "trust_mode"} <= keys
+
+
+def test_authenticated_write_requires_hmac_key(plugin, fake_client, tmp_path):
+    config = {
+        "collection": "test_memory",
+        "host": "127.0.0.1:50051",
+        "state_path": str(tmp_path / "missing-hmac.sqlite3"),
+        "auto_store": False,
+    }
+    provider = plugin.HyperspaceDBMemoryProvider(config, client_factory=lambda **kwargs: fake_client)
+    provider.initialize("missing-hmac")
+    try:
+        with pytest.raises(Exception) as raised:
+            provider._store_content_sync(
+                target="memory", source="test", trust="operator-verified", content="requires hmac"
+            )
+        assert getattr(raised.value, "code", None) == "CONFIGURATION_ERROR"
+    finally:
+        provider.shutdown()
+
+
+def test_ownership_hmac_environment_value_overrides_legacy_config(plugin, monkeypatch):
+    monkeypatch.setenv("TEST_HMAC_ENV", "environment-key")
+    provider = plugin.HyperspaceDBMemoryProvider({
+        "collection": "test_memory",
+        "host": "127.0.0.1:50051",
+        "auto_store": False,
+        "ownership_hmac_key_env": "TEST_HMAC_ENV",
+        "ownership_hmac_key": "legacy-config-key",
+    })
+    assert provider._ownership_hmac_key == b"environment-key"

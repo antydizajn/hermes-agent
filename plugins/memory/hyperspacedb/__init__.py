@@ -843,7 +843,9 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             else _hermes_home() / "state" / "hyperspacedb" / "ledger.sqlite3"
         )
         self._profile_scope = str(self._config.get("profile_scope") or _profile_scope())
-        self._ownership_hmac_key = str(self._config.get("ownership_hmac_key") or "").encode("utf-8")
+        ownership_env = str(self._config.get("ownership_hmac_key_env") or "HYPERSPACE_OWNERSHIP_HMAC_KEY")
+        ownership_value = os.environ.get(ownership_env) or str(self._config.get("ownership_hmac_key") or "")
+        self._ownership_hmac_key = ownership_value.encode("utf-8")
         previous_keys = self._config.get("previous_ownership_hmac_keys") or []
         if isinstance(previous_keys, str):
             previous_keys = [previous_keys]
@@ -1083,6 +1085,9 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         return [
             {"key": "collection", "description": "Existing HyperspaceDB collection name", "default": ""},
             {"key": "host", "description": "gRPC endpoint", "default": _DEFAULT_HOST},
+            {"key": "metric", "description": "Existing collection metric", "default": "lorentz", "choices": ["lorentz", "cosine", "l2"]},
+            {"key": "expected_dimension", "description": "Optional exact collection dimension (0 disables the check)", "default": "0"},
+            {"key": "ownership_hmac_key_env", "description": "Environment variable containing the ownership HMAC key", "default": "HYPERSPACE_OWNERSHIP_HMAC_KEY"},
             {"key": "top_k", "description": "Automatic prefetch result count", "default": str(_DEFAULT_TOP_K)},
             {"key": "auto_store", "description": "Mirror curated built-in memory writes", "default": "true", "choices": ["true", "false"]},
             {"key": "trust_mode", "description": "Automatic prefetch trust policy", "default": "owned_only", "choices": ["owned_only", "annotate_all"]},

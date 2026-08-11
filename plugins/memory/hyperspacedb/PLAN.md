@@ -1158,33 +1158,33 @@ This section must be updated live. A final bulk update is forbidden.
 ### CURRENT EXECUTION STATE
 
 - Current phase: `PHASE B - CLOSE P0-A THROUGH P0-H`
-- Active step: `33`
-- Base progress: `30/43 tracked steps completed; steps 26 and 28 remain evidence-blocked`
+- Active step: `35`
+- Base progress: `32/43 tracked steps completed; steps 26 and 28 remain evidence-blocked`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T07:28:22+02:00`
+- Last PLAN.md update UTC: `2026-08-11T07:48:36+02:00`
 - Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
 - Current blocker: `NONE RECORDED`
-- Immediate next action: `Audit config schema and public setup documentation for fail-closed defaults.`
+- Immediate next action: `Audit queue behavior and failure accounting under overload.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `33`
-- Goal: `Audit public configuration inputs and fail-closed setup documentation.`
-- Why now / dependency satisfied: `Lifecycle redaction and strict tool arguments are covered by 74 local tests.`
+- Step ID: `35`
+- Goal: `Audit worker queue overload, shutdown, and failure accounting.`
+- Why now / dependency satisfied: `Public config and HMAC credential boundaries are tested.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T07:28:22+02:00`
-- Last updated UTC: `2026-08-11T07:28:22+02:00`
-- Files/scope: `PLAN.md; plugin.yaml; README.md; tests/`
-- Intended acceptance test: `Schema/README consistency test plus full local pytest.`
-- Latest command/observation: `Step 32 focused suite: 11 passed; full pytest: 74 passed.`
+- Started UTC: `2026-08-11T07:48:36+02:00`
+- Last updated UTC: `2026-08-11T07:48:36+02:00`
+- Files/scope: `PLAN.md; __init__.py; tests/`
+- Intended acceptance test: `Deterministic queue-overload test and full local pytest.`
+- Latest command/observation: `Step 34 focused suite: 22 passed; full pytest: 79 passed.`
 - Exit code: `0`
-- Evidence/result: `Steps 31-32 complete and committed next; error output and status redact secret-like values.`
-- Blocker: `Only actual backend payload shape and distance calibration await an authorized isolated E2E endpoint.`
-- Next action: `Cross-check public configuration.`
+- Evidence/result: `Steps 33-34 complete; HMAC is env-first and authenticated writes fail closed without it.`
+- Blocker: `Only authorized isolated E2E evidence gates remain blocked.`
+- Next action: `Exercise bounded write queue behavior.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1225,9 +1225,9 @@ fixture content, private collection names, or private absolute paths.
 | 30 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:20:23+02:00 | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:22:52+02:00 | __init__.py; tests/test_hermes_contract.py | P1-I tool trust boundary | focused tool suite; full pytest; py_compile | exit 0; 15 focused, 72 full | Search tools label retrieved content non-executable and reject unknown tool names | Step 31 |
 | 31 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:22:52+02:00 | 2026-08-11T07:28:22+02:00 | 2026-08-11T07:28:22+02:00 | __init__.py; tests/test_hermes_contract.py | error/status redaction | focused contract suite; full pytest | exit 0; 10 focused, 73 full | Secret-like strings are redacted from tool errors and status | Step 32 |
 | 32 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:27:44+02:00 | 2026-08-11T07:28:22+02:00 | 2026-08-11T07:28:22+02:00 | __init__.py; tests/test_hermes_contract.py | strict tool argument allowlist | focused contract suite; full pytest | exit 0; 11 focused, 74 full | Unknown tool arguments fail before handlers | Step 33 |
-| 33 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T07:28:22+02:00 | 2026-08-11T07:28:22+02:00 | - | public configuration/documentation audit | - | Pending | - | Cross-check schema, README, and manifest |
-| 34 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| 35 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| 33 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:28:22+02:00 | 2026-08-11T07:48:36+02:00 | 2026-08-11T07:48:36+02:00 | __init__.py; README.md; tests/ | public configuration contract | focused config suite; full pytest | exit 0; 19 focused, 76 full | Setup schema exposes metric/dimension controls; docs removed invalid trust-mode claim | Step 34 |
+| 34 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T07:39:42+02:00 | 2026-08-11T07:48:36+02:00 | 2026-08-11T07:48:36+02:00 | __init__.py; README.md; tests/ | HMAC environment boundary | focused credential suite; full pytest | exit 0; 22 focused, 79 full | Env HMAC overrides legacy config; authenticated writes refuse absent key without breaking read-only init | Step 35 |
+| 35 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T07:48:36+02:00 | 2026-08-11T07:48:36+02:00 | - | worker queue overload audit | - | Pending | - | Verify queue-full observability and non-blocking behavior |
 | 36 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 37 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 38 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1270,3 +1270,4 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T07:22:52+02:00 | 30 | CHECKPOINT | Numeric steps through 30 processed: 28 completed, 2 correctly blocked on authorized E2E evidence. | Latest local suite is 72 passed. | Commit post-P1 changes and proceed Step 31. |
 | 2026-08-11T07:28:22+02:00 | 31 | TEST | Initial redaction test expected a redaction marker from a generic backend error, but the classifier had already dropped the secret. | Retained generic-error safety test and added direct sanitizer test; fixed regex backreference using a lambda. | Mark Step 31 complete. |
 | 2026-08-11T07:28:22+02:00 | 32 | DECISION | JSON schemas alone are not a reliable runtime validation boundary. | Added fail-closed per-tool argument allowlist in the handler. | Mark Step 32 complete. |
+| 2026-08-11T07:47:32+02:00 | 34 | TEST | Eager HMAC validation blocked read-only initialization and two existing lifecycle tests. | Removed eager validation; writes remain authenticated and fail closed at mutation time. | Mark Step 34 complete. |
