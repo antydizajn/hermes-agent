@@ -1248,7 +1248,23 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         metadata = self._internal_metadata(
             target, source, trust, clean, digest, user_metadata
         )
-        self._insert_verified(record_id, clean, metadata, digest)
+        pending = LedgerRecord(
+            digest=digest,
+            external_id=record_id,
+            profile_scope=self._profile_scope,
+            target=target,
+            source=source,
+            content=clean,
+            status="inserting",
+            error="",
+            updated_at=_utc_now(),
+        )
+        self._ledger.upsert(pending)
+        try:
+            self._insert_verified(record_id, clean, metadata, digest)
+        except ProviderError as error:
+            self._ledger.set_status(digest, "retry_pending", str(error))
+            raise
         record = LedgerRecord(
             digest=digest,
             external_id=record_id,
@@ -1379,6 +1395,35 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             raise MutationVerificationError("Read-after-delete verification failed")
         self._backend_proven_alive()
 
+    def reconcile_pending_inserts(self, limit: int = 16) -> Dict[str, int]:
+        if self._ledger is None:
+            raise ConfigurationError("Provider is not initialized")
+        result = {"attempted": 0, "active": 0, "conflicts": 0, "deferred": 0}
+        if not self._ownership_hmac_key:
+            return result
+        records = self._ledger.records_with_status("inserting", limit)
+        records += self._ledger.records_with_status("retry_pending", limit)
+        for record in records[:max(1, min(int(limit), 128))]:
+            result["attempted"] += 1
+            try:
+                points = self._call("get_points", [record.external_id], collection=self._collection)
+                if not isinstance(points, list):
+                    raise BackendMalformed("get_points returned a non-list response")
+                if not points:
+                    self._backend_proven_alive()
+                    self._ledger.set_status(record.digest, "retry_pending", "Remote insert absence confirmed; explicit retry required")
+                    result["deferred"] += 1
+                elif self._point_owner_matches(points[0], record.digest):
+                    self._ledger.set_status(record.digest, "active")
+                    result["active"] += 1
+                else:
+                    self._ledger.set_status(record.digest, "conflict", "Pending insert ID is not authenticated ownership")
+                    result["conflicts"] += 1
+            except ProviderError as error:
+                self._ledger.set_status(record.digest, "retry_pending", str(error))
+                result["deferred"] += 1
+        return result
+
     def reconcile_delete_pending(self, limit: int = 16) -> Dict[str, int]:
         if self._ledger is None:
             raise ConfigurationError("Provider is not initialized")
@@ -1429,21 +1474,25 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             self._ledger.set_status(old.digest, "removed")
             return
         if action == "replace":
-            new, _ = self._store_content_sync(
-                target=target, source=source, trust=trust,
-                content=content, user_metadata=metadata,
-            )
-            if new.digest == old.digest:
-                return
             assert self._ledger is not None
+            self._ledger.set_status(old.digest, "replacing")
+            try:
+                new, _ = self._store_content_sync(
+                    target=target, source=source, trust=trust,
+                    content=content, user_metadata=metadata,
+                )
+            except ProviderError as error:
+                self._ledger.set_status(old.digest, "active", str(error))
+                raise
+            if new.digest == old.digest:
+                self._ledger.set_status(old.digest, "active")
+                return
             self._ledger.set_status(old.digest, "delete_pending")
             try:
                 self._delete_verified(old)
             except ProviderError as error:
-                assert self._ledger is not None
                 self._ledger.set_status(old.digest, "delete_pending", str(error))
                 raise
-            assert self._ledger is not None
             self._ledger.set_status(old.digest, "replaced")
             return
         raise ConfigurationError("action must be add, replace, or remove")

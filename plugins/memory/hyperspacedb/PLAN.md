@@ -1158,33 +1158,33 @@ This section must be updated live. A final bulk update is forbidden.
 ### CURRENT EXECUTION STATE
 
 - Current phase: `PHASE B - CLOSE P0-A THROUGH P0-H`
-- Active step: `20`
-- Base progress: `20/43 tracked steps completed by next executor`
+- Active step: `22`
+- Base progress: `21/43 tracked steps completed by next executor`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T06:10:18+02:00`
+- Last PLAN.md update UTC: `2026-08-11T06:14:30+02:00`
 - Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
 - Current blocker: `NONE RECORDED`
-- Immediate next action: `Implement authenticated delete_pending reconciliation within active Step 20.`
+- Immediate next action: `Implement client-generation in-flight tracking and safe rotation/shutdown.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `20`
-- Goal: `Implement explicit mutation recovery and authenticated delete_pending reconciliation.`
-- Why now / dependency satisfied: `Steps 1-19 have unit evidence; delete_pending is durably recorded before remote delete.`
+- Step ID: `22`
+- Goal: `Prevent client close/rotation while an RPC is in flight.`
+- Why now / dependency satisfied: `Mutation transitions and recovery now have focused test evidence.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T06:01:34+02:00`
-- Last updated UTC: `2026-08-11T06:10:18+02:00`
-- Files/scope: `PLAN.md; __init__.py; tests/test_mutation_recovery.py`
-- Intended acceptance test: `Only signed pending records can be reconciled; absent records require a live backend confirmation.`
-- Latest command/observation: `py_compile exit 0; targeted reconciliation suite: 4 passed in 0.24s.`
+- Started UTC: `2026-08-11T06:14:30+02:00`
+- Last updated UTC: `2026-08-11T06:14:30+02:00`
+- Files/scope: `PLAN.md; __init__.py; tests/test_lifecycle.py`
+- Intended acceptance test: `Rotation and shutdown defer close until all client references release.`
+- Latest command/observation: `Full local pytest after state transitions: 58 passed in 0.83s.`
 - Exit code: `0`
-- Evidence/result: `Signed pending delete resolves; foreign ownership becomes conflict; confirmed absence resolves; unsigned mode is inert.`
+- Evidence/result: `Step 20 complete: INSERTING/ACTIVE/REPLACING/DELETE_PENDING/RETRY_PENDING/CONFLICT transitions are persisted; signed recovery is bounded.`
 - Blocker: `-`
-- Next action: `Add INSERTING/RETRY_PENDING recovery before closing Step 20.`
+- Next action: `Add client in-flight references before deferred close.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1212,9 +1212,9 @@ fixture content, private collection names, or private absolute paths.
 | 17 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T05:56:45+02:00 | 2026-08-11T05:57:52+02:00 | __init__.py; tests/test_p0_red_regressions.py | Harden legacy target and pre-delete verification | isolated forged pre-delete pytest | exit 0; 1 passed | - | Step 18 |
 | 18 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T05:57:52+02:00 | 2026-08-11T06:00:16+02:00 | __init__.py; tests/test_ledger_migrations.py | Versioned SQLite migration and corruption gate | targeted migration pytest | exit 0; 2 passed | - | Step 19 |
 | 19 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T06:00:16+02:00 | 2026-08-11T06:01:12+02:00 | __init__.py; tests/test_ledger_migrations.py | State permissions and symlink resistance | targeted permission pytest | exit 0; 4 passed | - | Step 20 |
-| 20 | [>] | IN_PROGRESS | INTEGRATION_TESTED | 2026-08-11T06:01:34+02:00 | 2026-08-11T06:10:18+02:00 | __init__.py; tests/test_mutation_recovery.py | delete state and recovery | py_compile; targeted pytest | exit 0; 4 passed | INSERTING/RETRY_PENDING remains open | Continue Step 20 |
+| 20 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:01:34+02:00 | 2026-08-11T06:14:30+02:00 | __init__.py; tests/test_mutation_recovery.py | Mutation state machine and unknown outcomes | py_compile; recovery suite; full pytest | exit 0; 6 focused, 58 full | Signed insert/deletion outcomes recover without duplicate insert or unsafe delete | Step 22 |
 | 21 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T06:08:20+02:00 | 2026-08-11T06:10:18+02:00 | __init__.py; tests/test_mutation_recovery.py | Bounded authenticated delete_pending reconciliation | targeted pytest | exit 0; 4 passed | Only signed record deleted; missing confirmed by health; forged is conflict; no key is inert | Step 20 |
-| 22 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| 22 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T06:14:30+02:00 | 2026-08-11T06:14:30+02:00 | - | Client in-flight tracking and safe close | - | Pending | - | Add generation reference accounting |
 | 23 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 24 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 25 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1254,3 +1254,5 @@ Append failures and operator decisions; never overwrite earlier entries.
 | - | - | - | No next-executor entries yet | - | Start step 1 |
 | 2026-08-11T06:08:39+02:00 | 20 | TOOLING | A quoted terminal patch failed before writing source. | No source change from failed command. | Switched to an encoded in-scope editor. |
 | 2026-08-11T06:10:18+02:00 | 21 | DECISION | User required git commits limited to this plugin. | Stage/commit only plugin paths after an evidence-backed batch. | Run full suite, inspect scoped diff, then create scoped commit. |
+| 2026-08-11T06:11:50+02:00 | 20/21 | GIT | Scoped plugin-only baseline committed after full fake suite. | Commit 0775d5948 contains only 18 plugin source/docs/test files; runtime state was excluded. | Continue Step 20; stage only explicit plugin source paths for later commits. |
+| 2026-08-11T06:14:30+02:00 | 20 | TEST | State transitions and recovery tested on fake backend. | 6 focused tests and 58 full tests passed; no real backend mutated. | Begin lifecycle generation safety. |
