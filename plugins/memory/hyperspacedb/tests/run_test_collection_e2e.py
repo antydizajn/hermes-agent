@@ -1,8 +1,10 @@
 """Operator-authorized E2E against a dedicated HyperspaceDB test collection.
 
 Required environment:
+- HSDB_E2E_WRITE_APPROVED: literal `approved` acknowledgment for this dedicated target
+- HSDB_TEST_OWNERSHIP_HMAC_KEY: non-production ownership HMAC key
 - HSDB_TEST_SOURCE_COLLECTION: existing read-only fixture source
-- HSDB_TEST_COLLECTION: dedicated target collection
+- HSDB_TEST_COLLECTION: dedicated target collection prefixed `hsdb_e2e_`
 
 The script never deletes a collection. It copies a bounded fixture sample, then
 verifies provider add/replace/remove using synthetic records in the target only.
@@ -64,10 +66,18 @@ def close_client(client):
 
 
 def main():
+    approval = os.environ.get("HSDB_E2E_WRITE_APPROVED", "").strip().lower()
+    if approval != "approved":
+        raise SystemExit("Set HSDB_E2E_WRITE_APPROVED=approved before any isolated test write")
+    ownership_key = os.environ.get("HSDB_TEST_OWNERSHIP_HMAC_KEY", "").strip()
+    if not ownership_key:
+        raise SystemExit("HSDB_TEST_OWNERSHIP_HMAC_KEY is required for authenticated E2E writes")
     source = os.environ.get("HSDB_TEST_SOURCE_COLLECTION", "").strip()
     target = os.environ.get("HSDB_TEST_COLLECTION", "").strip()
     if not source or not target or source == target:
         raise SystemExit("Distinct HSDB_TEST_SOURCE_COLLECTION and HSDB_TEST_COLLECTION are required")
+    if not target.startswith("hsdb_e2e_"):
+        raise SystemExit("HSDB_TEST_COLLECTION must use the hsdb_e2e_ prefix")
     host = os.environ.get("HYPERSPACE_HOST", "127.0.0.1:50051")
     key = os.environ.get("HYPERSPACE_API_KEY") or None
     user_id = os.environ.get("HYPERSPACE_USER_ID") or None
@@ -145,6 +155,7 @@ def main():
             "metric": "lorentz",
             "api_key_env": "HYPERSPACE_API_KEY",
             "user_id_env": "HYPERSPACE_USER_ID",
+            "ownership_hmac_key_env": "HSDB_TEST_OWNERSHIP_HMAC_KEY",
             "state_path": str(ROOT / "state" / "test-collection-e2e.sqlite3"),
             "profile_scope": "e2e-test-scope",
             "trust_mode": "annotate_all",

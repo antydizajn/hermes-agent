@@ -1,5 +1,6 @@
 import inspect
 import json
+import queue
 
 import pytest
 
@@ -138,3 +139,25 @@ def test_ownership_hmac_environment_value_overrides_legacy_config(plugin, monkey
         "ownership_hmac_key": "legacy-config-key",
     })
     assert provider._ownership_hmac_key == b"environment-key"
+
+
+def test_full_write_queue_records_failure_without_blocking(provider, fake_client):
+    class FullQueue:
+        unfinished_tasks = 0
+
+        def put_nowait(self, unused):
+            raise queue.Full
+
+    provider._write_queue = FullQueue()
+    before = provider.status_snapshot()["failed_writes"]
+    provider.on_memory_write("add", "memory", "cannot enqueue")
+    after = provider.status_snapshot()["failed_writes"]
+    assert after == before + 1
+    assert fake_client.points == {}
+
+
+def test_status_exposes_collection_contract_verification(provider, fake_client):
+    assert provider.status_snapshot()["collection_contract_verified"] is True
+    provider._configured_metric = "cosine"
+    provider.initialize("invalid-contract")
+    assert provider.status_snapshot()["collection_contract_verified"] is False

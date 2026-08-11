@@ -1662,7 +1662,6 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                 self._apply_memory_event(action, target, content, metadata)
             except Exception as exc:
                 error = _classify_exception(exc)
-                self._failed_writes += 1
                 self._mark_error(error)
                 if self._ledger is not None:
                     self._ledger.record_failure(
@@ -1670,6 +1669,8 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                         str((metadata or {}).get("old_text") or ""),
                         error.code, str(error),
                     )
+                else:
+                    self._failed_writes += 1
                 logger.error("HyperspaceDB memory mutation failed: %s", error)
             finally:
                 self._write_queue.task_done()
@@ -1693,13 +1694,14 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         try:
             self._write_queue.put_nowait((action, target, content, dict(metadata or {})))
         except queue.Full:
-            self._failed_writes += 1
             if self._ledger is not None:
                 self._ledger.record_failure(
                     action, target, content,
                     str((metadata or {}).get("old_text") or ""),
                     "WRITE_QUEUE_FULL", "Ordered write queue is full",
                 )
+            else:
+                self._failed_writes += 1
 
     def flush_writes(self, timeout: float = 5.0) -> bool:
         flush_cutoff = time.monotonic() + max(0.0, timeout)
@@ -1713,6 +1715,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             "collection": self._collection,
             "scope": self._profile_scope,
             "trust_mode": self._trust_mode,
+            "collection_contract_verified": bool(self._collection_contract_verified),
             "pending_writes": int(self._write_queue.unfinished_tasks),
             "failed_writes": self._failed_writes + (
                 self._ledger.failure_count() if self._ledger is not None else 0

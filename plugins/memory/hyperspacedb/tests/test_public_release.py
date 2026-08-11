@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 import re
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT_EXTENSIONS = {".py", ".md", ".yaml", ".yml", ".toml", ".txt"}
@@ -79,3 +80,35 @@ def test_readme_documents_hmac_environment_boundary():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "ownership_hmac_key_env" in text
     assert "do not put the key in a public configuration file" in text
+
+
+def test_manifest_version_and_dependency_contract_match_readme():
+    manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text(encoding="utf-8"))
+    assert re.fullmatch(r"\d+\.\d+\.\d+", str(manifest["version"]))
+    dependency = manifest["pip_dependencies"][0]
+    assert dependency.startswith("hyperspacedb>=") and ",<" in dependency
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert f"Version {manifest['version']}" in text
+    assert dependency in text
+
+
+def test_e2e_runner_requires_explicit_approval_and_test_hmac_before_client_creation():
+    text = (ROOT / "tests" / "run_test_collection_e2e.py").read_text(encoding="utf-8")
+    assert "HSDB_E2E_WRITE_APPROVED" in text
+    assert "HSDB_TEST_OWNERSHIP_HMAC_KEY" in text
+    assert "hsdb_e2e_" in text
+    assert text.index('approval != "approved"') < text.index("client = HyperspaceClient")
+
+
+def test_tracked_release_manifest_excludes_runtime_artifacts():
+    repository = ROOT.parents[2]
+    prefix = "plugins/memory/hyperspacedb"
+    output = subprocess.check_output(
+        ["git", "ls-files", "--", prefix], cwd=repository, text=True
+    )
+    tracked = [line for line in output.splitlines() if line]
+    assert f"{prefix}/__init__.py" in tracked
+    assert f"{prefix}/README.md" in tracked
+    assert f"{prefix}/plugin.yaml" in tracked
+    assert not any("/state/" in path for path in tracked)
+    assert not any(path.endswith((".sqlite3", ".pyc")) for path in tracked)
