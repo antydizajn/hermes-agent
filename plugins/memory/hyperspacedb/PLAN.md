@@ -1158,33 +1158,33 @@ This section must be updated live. A final bulk update is forbidden.
 ### CURRENT EXECUTION STATE
 
 - Current phase: `PHASE B - CLOSE P0-A THROUGH P0-H`
-- Active step: `23`
-- Base progress: `22/43 tracked steps completed by next executor`
+- Active step: `24`
+- Base progress: `23/43 tracked steps completed by next executor`
 - Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T06:27:40+02:00`
+- Last PLAN.md update UTC: `2026-08-11T06:42:40+02:00`
 - Last verified test level: `UNIT TESTED AGAINST CURRENT FAKE SUITE; SEE SECTION 7`
 - Current blocker: `NONE RECORDED`
-- Immediate next action: `Implement bounded startup reconciliation with attempt cap and persisted backoff.`
+- Immediate next action: `Close P1-B with an explicit no-replay operator contract.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `23`
-- Goal: `Bound pending-delete reconciliation by persisted attempts and retry schedule.`
-- Why now / dependency satisfied: `Client generation rotation and shutdown are barrier-tested.`
+- Step ID: `24`
+- Goal: `Document and test the bounded operator-reconciliation boundary for failed mutations.`
+- Why now / dependency satisfied: `P1-A persists bounded due-time and attempt-cap state.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T06:26:55+02:00`
-- Last updated UTC: `2026-08-11T06:27:40+02:00`
-- Files/scope: `PLAN.md; __init__.py; tests/test_mutation_recovery.py`
-- Intended acceptance test: `Startup performs only due signed reconciliation within a bounded attempt budget.`
-- Latest command/observation: `Step 22 committed after barrier suite; full local pytest: 62 passed in 0.93s.`
+- Started UTC: `2026-08-11T06:42:40+02:00`
+- Last updated UTC: `2026-08-11T06:42:40+02:00`
+- Files/scope: `PLAN.md; README.md; tests/test_public_release.py`
+- Intended acceptance test: `Public docs do not claim automatic eventual consistency or replay.`
+- Latest command/observation: `P1-A migrations and retry suite: 16 passed; full local pytest: 64 passed.`
 - Exit code: `0`
-- Evidence/result: `Step 22 complete: old client channel stays open during forced rotation/shutdown until blocked RPC releases.`
+- Evidence/result: `Step 23 complete: retries persist in schema v2, exponential delay is bounded, and startup reconciliation has a time budget.`
 - Blocker: `-`
-- Next action: `Add persisted retry metadata and initialization budget gate.`
+- Next action: `Document failed-mutation no-replay boundary.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1215,8 +1215,8 @@ fixture content, private collection names, or private absolute paths.
 | 20 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:01:34+02:00 | 2026-08-11T06:14:30+02:00 | __init__.py; tests/test_mutation_recovery.py | Mutation state machine and unknown outcomes | py_compile; recovery suite; full pytest | exit 0; 6 focused, 58 full | Signed insert/deletion outcomes recover without duplicate insert or unsafe delete | Step 22 |
 | 21 | [x] | COMPLETE | UNIT_TESTED | 2026-08-11T06:08:20+02:00 | 2026-08-11T06:10:18+02:00 | __init__.py; tests/test_mutation_recovery.py | Bounded authenticated delete_pending reconciliation | targeted pytest | exit 0; 4 passed | Only signed record deleted; missing confirmed by health; forged is conflict; no key is inert | Step 20 |
 | 22 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:14:30+02:00 | 2026-08-11T06:26:55+02:00 | 2026-08-11T06:26:55+02:00 | __init__.py; tests/test_lifecycle.py; tests/test_mutation_recovery.py | Client generation in-flight safety | py_compile; barrier suite; full pytest | exit 0; 10 focused, 62 full | Rotation and shutdown defer close until blocked RPC releases | Step 23 |
-| 23 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T06:26:55+02:00 | 2026-08-11T06:26:55+02:00 | - | P1-A persisted bounded reconciliation | - | Pending | - | Add attempt cap and due-time gate |
-| 24 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| 23 | [x] | COMPLETE | INTEGRATION_TESTED | 2026-08-11T06:26:55+02:00 | 2026-08-11T06:42:40+02:00 | 2026-08-11T06:42:40+02:00 | __init__.py; tests/test_ledger_migrations.py; tests/test_mutation_recovery.py | P1-A persisted bounded reconciliation | py_compile; P1-A suite; full pytest | exit 0; 16 focused, 64 full | Schema v2 persists retry count and due time; startup budget and cap prevent unbounded replay | Step 24 |
+| 24 | [>] | IN_PROGRESS | UNVERIFIED | 2026-08-11T06:42:40+02:00 | 2026-08-11T06:42:40+02:00 | - | P1-B failed mutation replay contract | - | Pending | - | Document explicit operator-only reconciliation boundary |
 | 25 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 26 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | 27 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1259,3 +1259,5 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T06:24:50+02:00 | 22 | TEST | Existing lifecycle test expected immediate close after direct client acquisition. | Test failed because direct acquisition is now a lease; revised it to release before close assertion. | Barrier tests added, then full suite rerun. |
 | 2026-08-11T06:26:55+02:00 | 22 | TEST | Barrier rotation/shutdown lifecycle cases passed. | 10 focused tests and 62 full tests pass; fake backend only. | Begin P1-A bounded retry persistence. |
 | 2026-08-11T06:27:40+02:00 | 22 | GIT | Scoped lifecycle hardening committed. | Commit 71b9e8fd1 contains only plugin source, tests, and tracker; runtime state remains excluded. | Continue Step 23 with persisted bounded retry design. |
+| 2026-08-11T06:31:20+02:00 | BASE | OPERATOR | User requires uninterrupted execution with an explicit report every 10 tracked points. | Continue silently until checkpoint 30, then 40, then base completion; keep PLAN live and commit scoped batches. | Implement Step 23. |
+| 2026-08-11T06:42:40+02:00 | 23 | TEST | Persisted retry/backoff and schema upgrade tested. | 16 focused tests and 64 full tests passed on fake backend; no external endpoint invoked. | Close P1-B documentation boundary. |

@@ -8,8 +8,8 @@ def test_ledger_migration_sets_version_and_rejects_future(plugin, tmp_path):
     ledger = plugin.IdentityLedger(path)
     ledger.close()
     db = sqlite3.connect(path)
-    assert db.execute("PRAGMA user_version").fetchone()[0] == 1
-    db.execute("PRAGMA user_version=2")
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 2
+    db.execute("PRAGMA user_version=3")
     db.commit()
     db.close()
     with pytest.raises(plugin.ConfigurationError):
@@ -40,3 +40,17 @@ def test_ledger_rejects_symlink_state_path(plugin, tmp_path):
     link.symlink_to(target)
     with pytest.raises(plugin.ConfigurationError):
         plugin.IdentityLedger(link)
+
+
+def test_ledger_upgrades_v1_to_v2_retry_schema(plugin, tmp_path):
+    path = tmp_path / "ledger.sqlite3"
+    db = sqlite3.connect(path)
+    db.execute("CREATE TABLE records (digest TEXT PRIMARY KEY, external_id INTEGER NOT NULL UNIQUE, profile_scope TEXT NOT NULL, target TEXT NOT NULL, source TEXT NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, error TEXT NOT NULL, updated_at TEXT NOT NULL)")
+    db.execute("CREATE TABLE mutation_failures (id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT NOT NULL, target TEXT NOT NULL, content TEXT NOT NULL, old_text TEXT NOT NULL, error_code TEXT NOT NULL, error TEXT NOT NULL, created_at TEXT NOT NULL)")
+    db.execute("PRAGMA user_version=1")
+    db.commit()
+    db.close()
+    ledger = plugin.IdentityLedger(path)
+    assert ledger._db.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert ledger._db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='reconciliation_retries'").fetchone()[0] == "reconciliation_retries"
+    ledger.close()

@@ -459,7 +459,7 @@ class IdentityLedger:
                 self._db.execute("PRAGMA journal_mode=WAL")
                 self._db.execute("PRAGMA synchronous=FULL")
                 version = int(self._db.execute("PRAGMA user_version").fetchone()[0])
-                if version > 1:
+                if version > 2:
                     raise ConfigurationError("Ledger schema is newer than this plugin")
                 if version < 1:
                     self._db.execute("BEGIN IMMEDIATE")
@@ -468,6 +468,15 @@ class IdentityLedger:
                         self._db.execute("CREATE INDEX IF NOT EXISTS idx_records_target_status ON records(profile_scope, target, status)")
                         self._db.execute("CREATE TABLE IF NOT EXISTS mutation_failures (id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT NOT NULL, target TEXT NOT NULL, content TEXT NOT NULL, old_text TEXT NOT NULL, error_code TEXT NOT NULL, error TEXT NOT NULL, created_at TEXT NOT NULL)")
                         self._db.execute("PRAGMA user_version=1")
+                        self._db.commit()
+                    except Exception:
+                        self._db.rollback()
+                        raise
+                if version < 2:
+                    self._db.execute("BEGIN IMMEDIATE")
+                    try:
+                        self._db.execute("CREATE TABLE IF NOT EXISTS reconciliation_retries (digest TEXT PRIMARY KEY, attempts INTEGER NOT NULL, next_retry_epoch REAL NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(digest) REFERENCES records(digest))")
+                        self._db.execute("PRAGMA user_version=2")
                         self._db.commit()
                     except Exception:
                         self._db.rollback()
@@ -568,6 +577,33 @@ class IdentityLedger:
                 "ORDER BY updated_at, external_id LIMIT ?", (status, bounded),
             ).fetchall()
         return [self._row(row) for row in rows]
+
+    def reconciliation_due(self, digest: str, max_attempts: int, now: Optional[float] = None) -> bool:
+        moment = time.time() if now is None else float(now)
+        with self._lock:
+            row = self._db.execute(
+                "SELECT attempts, next_retry_epoch FROM reconciliation_retries WHERE digest=?", (digest,)
+            ).fetchone()
+        return row is None or (int(row[0]) < max(1, int(max_attempts)) and float(row[1]) <= moment)
+
+    def note_reconciliation_retry(self, digest: str, base_delay: float, max_attempts: int) -> int:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT attempts FROM reconciliation_retries WHERE digest=?", (digest,)
+            ).fetchone()
+            attempts = min((int(row[0]) if row else 0) + 1, max(1, int(max_attempts)))
+            delay = min(float(base_delay) * (2 ** min(attempts - 1, 10)), 3600.0)
+            self._db.execute(
+                "INSERT INTO reconciliation_retries (digest, attempts, next_retry_epoch, updated_at) VALUES (?,?,?,?) ON CONFLICT(digest) DO UPDATE SET attempts=excluded.attempts, next_retry_epoch=excluded.next_retry_epoch, updated_at=excluded.updated_at",
+                (digest, attempts, time.time() + delay, _utc_now()),
+            )
+            self._db.commit()
+        return attempts
+
+    def clear_reconciliation_retry(self, digest: str) -> None:
+        with self._lock:
+            self._db.execute("DELETE FROM reconciliation_retries WHERE digest=?", (digest,))
+            self._db.commit()
 
     def failure_count(self) -> int:
         with self._lock:
@@ -750,6 +786,10 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         self._queue_size = _bounded_int(
             self._config.get("write_queue_size"), _DEFAULT_QUEUE_SIZE, 8, 10_000
         )
+        self._reconcile_limit = _bounded_int(self._config.get("reconcile_limit"), 16, 1, 128)
+        self._reconcile_max_attempts = _bounded_int(self._config.get("reconcile_max_attempts"), 5, 1, 16)
+        self._reconcile_base_delay = _bounded_float(self._config.get("reconcile_base_delay"), 30.0, 1.0, 3600.0)
+        self._reconcile_startup_budget = _bounded_float(self._config.get("reconcile_startup_budget"), 2.0, 0.1, 30.0)
         self._durability = _bounded_int(self._config.get("durability"), 3, 0, 3)
         self._pool_size = _bounded_int(self._config.get("pool_size"), 4, 1, 32)
         self._auto_store = _coerce_bool(self._config.get("auto_store"), True)
@@ -977,6 +1017,10 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             stats = self._call("get_collection_stats", self._collection)
             if isinstance(stats, dict) and stats.get("metric"):
                 self._metric = str(stats["metric"]).lower()
+            if self._ownership_hmac_key and _coerce_bool(self._config.get("reconcile_on_initialize"), True):
+                self.reconcile_delete_pending(
+                    limit=self._reconcile_limit, budget_seconds=self._reconcile_startup_budget
+                )
         except ProviderError as error:
             self._mark_error(error)
 
@@ -1453,13 +1497,20 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                 result["deferred"] += 1
         return result
 
-    def reconcile_delete_pending(self, limit: int = 16) -> Dict[str, int]:
+    def reconcile_delete_pending(self, limit: int = 16, budget_seconds: Optional[float] = None) -> Dict[str, int]:
         if self._ledger is None:
             raise ConfigurationError("Provider is not initialized")
         if not self._ownership_hmac_key:
             return {"attempted": 0, "removed": 0, "conflicts": 0, "deferred": 0}
         result = {"attempted": 0, "removed": 0, "conflicts": 0, "deferred": 0}
+        deadline = None if budget_seconds is None else time.monotonic() + max(0.1, float(budget_seconds))
         for record in self._ledger.records_with_status("delete_pending", limit):
+            if deadline is not None and time.monotonic() >= deadline:
+                result["deferred"] += 1
+                break
+            if not self._ledger.reconciliation_due(record.digest, self._reconcile_max_attempts):
+                result["deferred"] += 1
+                continue
             result["attempted"] += 1
             try:
                 points = self._call("get_points", [record.external_id], collection=self._collection)
@@ -1468,17 +1519,23 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                 if not points:
                     self._backend_proven_alive()
                     self._ledger.set_status(record.digest, "removed")
+                    self._ledger.clear_reconciliation_retry(record.digest)
                     result["removed"] += 1
                     continue
                 if not self._point_owner_matches(points[0], record.digest):
                     self._ledger.set_status(record.digest, "conflict", "Pending delete no longer has authenticated ownership")
+                    self._ledger.clear_reconciliation_retry(record.digest)
                     result["conflicts"] += 1
                     continue
                 self._delete_verified(record)
                 self._ledger.set_status(record.digest, "removed")
+                self._ledger.clear_reconciliation_retry(record.digest)
                 result["removed"] += 1
             except ProviderError as error:
-                self._ledger.set_status(record.digest, "delete_pending", str(error))
+                attempts = self._ledger.note_reconciliation_retry(
+                    record.digest, self._reconcile_base_delay, self._reconcile_max_attempts
+                )
+                self._ledger.set_status(record.digest, "delete_pending", f"{error}; retry {attempts}")
                 result["deferred"] += 1
         return result
 

@@ -186,3 +186,15 @@ def test_shutdown_during_blocked_rpc_defers_close(provider):
     assert not thread.is_alive()
     assert outcome == [[]]
     assert created[0].closed == 1
+
+
+def test_reconciliation_persists_backoff_and_attempt_cap(provider, fake_client):
+    record = _pending_record(provider, "retry persistence fact")
+    fake_client.fail = TimeoutError("temporary backend failure")
+    first = provider.reconcile_delete_pending(limit=1)
+    assert first == {"attempted": 1, "removed": 0, "conflicts": 0, "deferred": 1}
+    row = provider._ledger._db.execute("SELECT attempts, next_retry_epoch FROM reconciliation_retries WHERE digest=?", (record.digest,)).fetchone()
+    assert row[0] == 1
+    assert row[1] > 0
+    second = provider.reconcile_delete_pending(limit=1)
+    assert second == {"attempted": 0, "removed": 0, "conflicts": 0, "deferred": 1}
