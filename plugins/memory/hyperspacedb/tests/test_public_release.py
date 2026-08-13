@@ -244,10 +244,13 @@ def test_e2e_self_seed_is_idempotent_and_target_scoped(monkeypatch):
     assert all(collection == target for collection in collection_calls)
 
 
-def test_e2e_runner_verifies_remote_absence_after_remove():
+def test_e2e_runner_verifies_remote_lifecycle_and_zero_worker_failures():
     text = (ROOT / "tests" / "run_test_collection_e2e.py").read_text(encoding="utf-8")
-    assert 'removed_external_id = rows[0]["external_id"]' in text
-    assert 'not client.get_points([removed_external_id], collection=target)' in text
+    assert 'old_external_id = rows[0]["external_id"]' in text
+    assert 'replacement_external_id = rows[0]["external_id"]' in text
+    assert 'not client.get_points([old_external_id], collection=target)' in text
+    assert 'not client.get_points([replacement_external_id], collection=target)' in text
+    assert 'provider.status_snapshot()["failed_writes"] == 0' in text
 
 
 def _load_e2e_runner(monkeypatch):

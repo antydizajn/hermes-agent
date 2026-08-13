@@ -187,8 +187,10 @@ def main() -> None:
             if not provider.flush_writes(timeout=E2E_FLUSH_TIMEOUT_SECONDS):
                 raise RuntimeError("Add queue did not drain")
             rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
-            summary["add_verified"] = len(rows) == 1 and bool(
-                client.get_points([rows[0]["external_id"]], collection=target)
+            old_external_id = rows[0]["external_id"] if len(rows) == 1 else None
+            summary["add_verified"] = (
+                old_external_id is not None
+                and bool(client.get_points([old_external_id], collection=target))
             )
 
             provider.on_memory_write(
@@ -197,11 +199,14 @@ def main() -> None:
             if not provider.flush_writes(timeout=E2E_FLUSH_TIMEOUT_SECONDS):
                 raise RuntimeError("Replace queue did not drain")
             rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
+            replacement_external_id = rows[0]["external_id"] if len(rows) == 1 else None
             summary["replace_verified"] = (
-                len(rows) == 1 and rows[0]["content"] == new
-                and bool(client.get_points([rows[0]["external_id"]], collection=target))
+                replacement_external_id is not None
+                and rows[0]["content"] == new
+                and bool(client.get_points([replacement_external_id], collection=target))
+                and old_external_id is not None
+                and not client.get_points([old_external_id], collection=target)
             )
-            removed_external_id = rows[0]["external_id"] if len(rows) == 1 else None
 
             provider.on_memory_write(
                 "remove", "memory", "", {"old_text": f"new fact {nonce}"}
@@ -211,14 +216,15 @@ def main() -> None:
             rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
             summary["remove_verified"] = (
                 rows == []
-                and removed_external_id is not None
-                and not client.get_points([removed_external_id], collection=target)
+                and replacement_external_id is not None
+                and not client.get_points([replacement_external_id], collection=target)
             )
+            summary["worker_clean"] = provider.status_snapshot()["failed_writes"] == 0
         finally:
             provider.shutdown()
 
         required = [
-            "payload_search_verified", "add_verified", "replace_verified", "remove_verified",
+            "payload_search_verified", "add_verified", "replace_verified", "remove_verified", "worker_clean",
         ]
         if not all(summary[key] for key in required):
             raise RuntimeError(f"E2E verification failed: {summary}")
