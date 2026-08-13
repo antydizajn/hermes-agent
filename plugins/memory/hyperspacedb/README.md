@@ -157,8 +157,12 @@ hierarchy tools accept only handles minted by the same live provider profile,
 session, and collection; raw backend point IDs are neither accepted nor returned.
 Cluster output is limited to cluster cardinalities, not member identifiers.
 
-The admin tool is read-only. Collection creation, deletion, rebuild, vacuum, and
-snapshot operations are intentionally absent.
+The admin tool is read-only. Its allowed operations are `health`, `stats`,
+`count`, `digest`, and `cache_stats`. Every numeric response is field-by-field
+allowlisted and malformed backend maps fail closed; raw backend maps, schema
+objects, cache entries, and bucket lists are not returned. Collection creation,
+deletion, rebuild, vacuum, snapshot, reconsolidation, cache mutation, and cache
+configuration operations are intentionally absent.
 
 ## Backup and restore
 

@@ -999,7 +999,7 @@ Acceptance tests:
 
 ### OPTIONAL-B: extend `hyperspace_graph` with bounded `points`
 
-STATUS: IN_PROGRESS. The current server/SDK protobuf contract stores and
+STATUS: COMPLETED (local commit `87d3eec2a`, integration-tested only). The current server/SDK protobuf contract stores and
 retrieves backend point slots as `uint32`; this is not a durable logical identity.
 The plugin's logical identity is the full SHA-256 digest plus HMAC and profile
 scope, with `uint32` collision probing only as a backend allocation adapter.
@@ -1186,34 +1186,34 @@ full local PTY suite pass. This earns UNIT/INTEGRATION evidence only, never E2E.
 
 ### CURRENT EXECUTION STATE
 
-- Current phase: `OPTIONAL-B CAPABILITY-HANDLE MIGRATION`
-- Active step: `A3 [>]`
+- Current phase: `OPTIONAL-C READ-ONLY ADMIN ALLOWLIST`
+- Active step: `A4 [>]`
 - Base progress: `40/43 historical tracked steps completed; strict E2E gates 26, 28, and 43 remain blocked`
-- Optional progress: `A1 [x] baseline; A2 [x] committed ca7a62de3; A3 [>] local opaque-handle redesign under TDD`
-- Last PLAN.md update UTC: `2026-08-13T11:02:39+02:00`
-- Last verified test level: `A3 pre-commit final full fake-client suite GREEN: 105 passed in 14.45s; staged index contains exactly seven reviewed plugin paths, zero outside-plugin paths, and clean whitespace`
-- Current blocker: `No implementation or staging blocker. Local commit is authorized by the existing local-Git directive; base E2E gates 26, 28, and 43 stay blocked.`
-- Immediate next action: `Create one local A3 commit without bypass flags; verify its path scope and post-commit status, then begin OPTIONAL-C only after the tracker reflects the commit.`
+- Optional progress: `A1 [x] baseline; A2 [x] committed ca7a62de3; A3 [x] committed 87d3eec2a; A4 [>] commit gate passed source/test audit`
+- Last PLAN.md update UTC: `2026-08-13T11:24:00+02:00`
+- Last verified test level: `A4 complete fake-client suite GREEN: 110 passed in 14.36s with E2E runner explicitly ignored; admin AST allowlist, diff whitespace, forbidden-call scan, and staged scope pass`
+- Current blocker: `No implementation, audit, or staging blocker. Six reviewed A4 files are staged under the plugin only; base E2E gates 26, 28, and 43 stay blocked.`
+- Immediate next action: `Create one local A4 commit without bypass flags; verify commit manifest and post-commit scope before starting OPTIONAL-D.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `A3 [>]`
-- Goal: `Replace every model-facing backend uint32 point-slot input/output with bounded opaque capability handles, then expose bounded graph point retrieval without identifier enumeration.`
-- Why now / dependency satisfied: `A2 aggregate audit is committed locally and the user authorized sequential local plugin-only OPTIONAL-A through OPTIONAL-G execution.`
-- Progress status: `COMMIT_GATE`
-- Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-13T09:40:48+02:00`
-- Last updated UTC: `2026-08-13T10:56:13+02:00`
-- Files/scope: `PLUGIN_ROOT/__init__.py, README.md, PLAN.md, and matching local tests only; no core, SDK, server, config, secrets, collection, standalone/public repository, remote, or E2E action.`
-- Intended acceptance test: `Focused capability lifecycle/slot-leak tests, README contract test, final complete fake-client suite with E2E runner explicitly ignored, compile/whitespace/schema checks, and exact staged plugin-only scope.`
-- Latest command/observation: `Full no-E2E plugin suite through PTY: 105 passed in 18.23s.`
+- Step ID: `A4 [>]`
+- Goal: `Add only bounded read-only `count`, `digest`, and `cache_stats` operations to hyperspace_admin through field allowlists.`
+- Why now / dependency satisfied: `A3 capability migration is locally committed and verified; source inventory confirms current SDK exposes these read-only calls.`
+- Progress status: `RED_READY`
+- Verification level: `STATIC_CHECKED`
+- Started UTC: `2026-08-13T11:04:13+02:00`
+- Last updated UTC: `2026-08-13T11:04:13+02:00`
+- Files/scope: `PLUGIN_ROOT/__init__.py, tests/test_optional_admin.py, tests/conftest.py if fake read-only methods are required, README.md, PLAN.md only; no core, SDK, server, config, secrets, collection, standalone/public repository, remote, or E2E action.`
+- Intended acceptance test: `Fake-client RED/GREEN proves operations are read-only, output is allowlisted, malformed/unexpected maps fail closed, and no destructive admin operation is registered; full suite excludes E2E.`
+- Latest command/observation: `Read-only SDK inventory found count(), get_digest(), and get_cache_stats(); cache stats use a GET endpoint but raw shape is untrusted.`
 - Exit code: `0`
-- Evidence/result: `Search/store/prefetch/graph/hierarchy outputs avoid raw backend slots; raw graph/hierarchy ID arguments are rejected; handles are profile/session/collection scoped, bounded, expired, and cleared at initialization. README now documents nine registered tools and capability contract.`
-- Blocker: `No source blocker; only staged-scope gate. Base strict E2E gates 26, 28, and 43 remain independently blocked.`
-- Next action: `Stage only reviewed A3 files; inspect staged diff/check/status; local commit only after exact-scope verification.`
+- Evidence/result: `No source changed for A4 yet. No actual SDK/server call was made.`
+- Blocker: `Need test-defined allowlist before adding model-facing admin operations.`
+- Next action: `Write A4 contract tests, run expected RED, then minimal local handler/schema/fake-client changes.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1274,8 +1274,8 @@ fixture content, private collection names, or private absolute paths.
 | HANDOFF-2 | [x] | DONE | STATIC_CHECKED | 2026-08-11T10:22:57+02:00 | 2026-08-11T10:25:07+02:00 | 2026-08-11T10:25:07+02:00 | PLAN.md; HANDOFF-TERRA-2.md only | Current status/log plus handoff creation | 0 | Handoff write receipt verified. No source/test operation during transfer. | Next session resumes L4 RED and Git gate from handoff. |
 | A1 | [x] | DONE | STATIC_CHECKED | 2026-08-13T09:18:31+02:00 | 2026-08-13T09:18:31+02:00 | 2026-08-13T09:18:31+02:00 | PLAN.md; local commit baseline | Optional baseline frozen at `1f2fcd519` before A2 | 0 | Baseline recorded before optional local changes; no E2E | A2 |
 | A2 | [x] | DONE | INTEGRATION_TESTED | 2026-08-13T09:20:00+02:00 | 2026-08-13T09:36:00+02:00 | 2026-08-13T09:36:00+02:00 | __init__.py; tests/test_optional_audit.py; tests/test_ledger_migrations.py; tests/test_hermes_contract.py; PLAN.md | Aggregate-only profile-scoped local audit tool; fake-client/local-ledger tests; full no-E2E suite | 0 | 24 focused passed; 97 full passed; local commit `ca7a62de3` | A3 |
-| A3 | [>] | COMMIT_GATE | INTEGRATION_TESTED | 2026-08-13T09:40:48+02:00 | 2026-08-13T10:58:00+02:00 | - | __init__.py; README.md; tests/test_optional_graph_points.py; tests/test_mutation_semantics.py; tests/test_p0_red_regressions.py; tests/test_public_release.py; PLAN.md | Raw uint32 backend-slot lookup replaced locally with short-lived opaque capability handles; store/prefetch/graph/hierarchy outputs avoid slot IDs; clusters expose only safe cardinalities; docs match nine-tool capability contract | focused fake-client/README suites plus final complete no-E2E suite | capability suite: 53 passed in 2.93s; README: 1 passed in 0.91s; final pre-commit suite: 105 passed in 14.45s; py_compile/schema/`git diff --check` passed | No implementation blocker; exact staged scope remains | Stage/recheck listed plugin paths, then local A3 commit only if staging gate is clean |
-| A4 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| A3 | [x] | DONE | INTEGRATION_TESTED | 2026-08-13T09:40:48+02:00 | 2026-08-13T11:04:13+02:00 | 2026-08-13T11:04:13+02:00 | __init__.py; README.md; tests/test_optional_graph_points.py; tests/test_mutation_semantics.py; tests/test_p0_red_regressions.py; tests/test_public_release.py; PLAN.md | Raw uint32 backend-slot lookup replaced locally with short-lived opaque capability handles; store/prefetch/graph/hierarchy outputs avoid slot IDs; clusters expose only safe cardinalities; docs match nine-tool capability contract | focused fake-client/README suites plus full no-E2E suite and staged scope review | final pre-commit suite: 105 passed in 14.45s; commit `87d3eec2a` has seven plugin files and zero outside-plugin files | Base strict E2E remains blocked | A4 |
+| A4 | [>] | COMMIT_GATE | INTEGRATION_TESTED | 2026-08-13T11:04:13+02:00 | 2026-08-13T11:22:41+02:00 | - | __init__.py; README.md; tests/conftest.py; tests/test_optional_admin.py; tests/test_public_release.py; PLAN.md | Add only read-only admin count/digest/cache_stats; sanitize existing stats/status with field allowlists | fake-client admin/status/security plus README contracts; full no-E2E suite; AST allowlist audit | RED 3 expected failures; GREEN admin/status 32 passed; README/admin 5 passed; full 110 passed in 14.36s; AST/compile/diff-check passed | No implementation blocker; exact staged scope remains | Stage/recheck listed plugin paths, then local A4 commit only if staging gate is clean |
 | A5 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | A6 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | A7 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1362,3 +1362,7 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-13T10:52:03+02:00 | A3 | TEST | Added a README contract test after source/schema review showed docs claim eight tools although the provider registers nine since A2. | Expected RED: exit 1 because README lacks the current tool count and capability-handle contract. No runtime/backend action. | Update README only with verified current tool list and raw-slot boundary, then rerun targeted GREEN. |
 | 2026-08-13T10:53:24+02:00 | A3 | VERIFY | README nine-tool and capability-boundary contract test reran after the bounded documentation correction. | Exit 0; 1 passed in 0.91s. `py_compile` and scoped whitespace passed. This corrects documentation only and does not alter E2E status. | Run final complete local plugin suite with E2E runner ignored, then stage/review local A3 files. |
 | 2026-08-13T10:56:13+02:00 | A3 | VERIFY | Final complete local plugin suite reran after README correction with `run_test_collection_e2e.py` explicitly ignored. | Exit 0; 105 passed in 18.23s. No E2E runner, credentials, collection mutation, server/SDK, core, config, standalone/public repository, or remote action occurred. | Update tracker to COMMIT_GATE; stage only reviewed local A3 files and verify index scope before commit. |
+| 2026-08-13T11:04:13+02:00 | A3 | GIT | Local commit `87d3eec2a` created after staged scope review. | Commit manifest contains exactly seven files under the local plugin path and zero paths outside it; preserved audit artifact remains untracked. | Begin A4 only after source inventory and a fresh RED contract. |
+| 2026-08-13T11:08:05+02:00 | A4 | INVENTORY | Read-only SDK/source audit found `count`, `get_digest`, and `get_cache_stats`; server cache endpoint is GET and cache struct has six structural fields. Existing plugin `stats` and `status` pass raw backend maps, which would violate the same allowlist rule. | A4 scope includes sanitizing existing model-facing stats/status as well as adding the three planned operations. No source, SDK/server, collection, credential, or E2E action occurred during inventory. | Write fake-client RED tests for all admin output allowlists and malformed responses. |
+| 2026-08-13T11:10:11+02:00 | A4 | TEST | Added fake-client admin allowlist/malformed/schema contracts and ran them before A4 implementation. | Expected RED: exit 1; three failures showed missing operations/schema and raw stats passthrough. A source check also found the actual DigestResponse state_hash is uint64, so the initially drafted string-hash test was corrected before implementation. | Add only read-only fake stubs, schemas, strict numeric allowlists, and handler branches; do not change SDK/server. |
+| 2026-08-13T11:18:14+02:00 | A4 | VERIFY | Targeted admin/status/security/Hermes-contract suite reran after implementation and an added status regression contract. | Exit 0; 32 passed in 1.53s. Admin `stats`, `count`, `digest`, `cache_stats`, and status stats use strict allowlists; malformed maps fail with MALFORMED_RESULT; no cache mutation operation was registered. Scoped whitespace is clean. | Add README contract for the verified admin operations, then rerun targeted and full no-E2E suite. |

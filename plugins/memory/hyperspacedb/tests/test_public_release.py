@@ -155,6 +155,14 @@ def test_readme_matches_current_nine_tool_and_capability_contract():
     assert "raw backend point IDs" in text
 
 
+def test_readme_documents_read_only_admin_allowlist():
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    for operation in ("health", "stats", "count", "digest", "cache_stats"):
+        assert f"`{operation}`" in text
+    assert "allowlisted" in text
+    assert "cache mutation" in text
+
+
 def test_manifest_version_and_dependency_contract_match_readme():
     manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text(encoding="utf-8"))
     assert re.fullmatch(r"\d+\.\d+\.\d+", str(manifest["version"]))

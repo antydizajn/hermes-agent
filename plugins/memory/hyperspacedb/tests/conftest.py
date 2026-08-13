@@ -29,6 +29,18 @@ class FakeClient:
         self.last_search = None
         self.calls = []
         self.search_results = None
+        self.stats_value = None
+        self.count_value = 0
+        self.digest_value = {"logical_clock": 0, "state_hash": 0, "count": 0}
+        self.cache_stats_value = {
+            "l1_size": 0,
+            "l2_index_size": 0,
+            "l1_hit_rate": 0.0,
+            "l2_hit_rate": 0.0,
+            "tombstone_count": 0,
+            "pending_rebuild": 0,
+            "estimated_memory_bytes": 0,
+        }
 
     def _maybe_fail(self):
         if self.fail:
@@ -42,7 +54,32 @@ class FakeClient:
     def get_collection_stats(self, name):
         self._maybe_fail()
         self.calls.append(("get_collection_stats", {"name": name}))
-        return {"name": name, "count": len(self.points), "metric": "lorentz"}
+        if self.stats_value is not None:
+            return dict(self.stats_value)
+        return {
+            "name": name,
+            "count": len(self.points),
+            "indexing_queue": 0,
+            "disk_usage_bytes": 0,
+            "ram_usage_bytes": 0,
+            "active_tasks": 0,
+            "metric": "lorentz",
+        }
+
+    def count(self, filters=None, collection=""):
+        self._maybe_fail()
+        self.calls.append(("count", {"collection": collection}))
+        return self.count_value
+
+    def get_digest(self, collection=""):
+        self._maybe_fail()
+        self.calls.append(("get_digest", {"collection": collection}))
+        return dict(self.digest_value)
+
+    def get_cache_stats(self, name):
+        self._maybe_fail()
+        self.calls.append(("get_cache_stats", {"name": name}))
+        return dict(self.cache_stats_value)
 
     def list_collections(self):
         self._maybe_fail()

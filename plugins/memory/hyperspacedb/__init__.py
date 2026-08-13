@@ -14,6 +14,7 @@ import hmac
 import ipaddress
 import json
 import logging
+import math
 import os
 import queue
 import re
@@ -57,6 +58,15 @@ _TOOL_ALLOWED_ARGS = {
     "hyperspace_search_advanced": {"query", "mode", "top_k", "collection"},
     "hyperspace_admin": {"operation", "collection"},
 }
+
+_ADMIN_STATS_FIELDS = (
+    "count", "indexing_queue", "disk_usage_bytes", "ram_usage_bytes", "active_tasks",
+)
+_ADMIN_DIGEST_FIELDS = ("logical_clock", "state_hash", "count")
+_ADMIN_CACHE_INT_FIELDS = (
+    "l1_size", "l2_index_size", "tombstone_count", "pending_rebuild", "estimated_memory_bytes",
+)
+_ADMIN_CACHE_RATE_FIELDS = ("l1_hit_rate", "l2_hit_rate")
 _RESERVED_META = {
     "_content", "_hs_owner", "_hs_digest", "_hs_profile", "_hs_schema",
     "source", "trust", "target", "ts", "timestamp", "record_id",
@@ -848,7 +858,7 @@ HSDB_ADMIN_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "operation": {"type": "string", "enum": ["health", "stats"]},
+            "operation": {"type": "string", "enum": ["health", "stats", "count", "digest", "cache_stats"]},
         },
         "required": ["operation"],
     },
@@ -2033,7 +2043,8 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
     def _tool_status(self) -> str:
         try:
             health = self._probe_health()
-            stats = self._call("get_collection_stats", self._collection)
+            raw_stats = self._call("get_collection_stats", self._collection)
+            stats = self._sanitize_admin_int_map(raw_stats, _ADMIN_STATS_FIELDS)
             result = {"ok": True, **self.status_snapshot(), "health": health, "stats": stats}
             return self._tool_json(result)
         except ProviderError as error:
@@ -2188,6 +2199,29 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         except ProviderError as error:
             return _json_error(error.code, str(error))
 
+    def _sanitize_admin_int_map(self, raw: Any, fields: Sequence[str]) -> Dict[str, int]:
+        if not isinstance(raw, dict):
+            raise BackendMalformed("Admin RPC returned a non-object response")
+        sanitized: Dict[str, int] = {}
+        for field in fields:
+            value = raw.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise BackendMalformed(f"Admin RPC returned invalid {field}")
+            sanitized[field] = value
+        return sanitized
+
+    def _sanitize_admin_cache_stats(self, raw: Any) -> Dict[str, Any]:
+        sanitized: Dict[str, Any] = self._sanitize_admin_int_map(raw, _ADMIN_CACHE_INT_FIELDS)
+        for field in _ADMIN_CACHE_RATE_FIELDS:
+            value = raw.get(field) if isinstance(raw, dict) else None
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise BackendMalformed(f"Admin RPC returned invalid {field}")
+            parsed = float(value)
+            if not math.isfinite(parsed) or not 0.0 <= parsed <= 1.0:
+                raise BackendMalformed(f"Admin RPC returned invalid {field}")
+            sanitized[field] = parsed
+        return sanitized
+
     def _tool_admin(self, args: Dict[str, Any]) -> str:
         try:
             collection = self._resolve_collection(args)
@@ -2195,9 +2229,24 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             if operation == "health":
                 result = {"health": self._probe_health()}
             elif operation == "stats":
-                result = self._call("get_collection_stats", collection)
+                result = self._sanitize_admin_int_map(
+                    self._call("get_collection_stats", collection), _ADMIN_STATS_FIELDS
+                )
+            elif operation == "count":
+                raw_count = self._call("count", collection=collection)
+                if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 0:
+                    raise BackendMalformed("count returned an invalid response")
+                result = {"count": raw_count}
+            elif operation == "digest":
+                result = self._sanitize_admin_int_map(
+                    self._call("get_digest", collection=collection), _ADMIN_DIGEST_FIELDS
+                )
+            elif operation == "cache_stats":
+                result = self._sanitize_admin_cache_stats(
+                    self._call("get_cache_stats", collection)
+                )
             else:
-                raise ConfigurationError("operation must be health or stats")
+                raise ConfigurationError("operation must be health, stats, count, digest, or cache_stats")
             return self._tool_json({"ok": True, "result": result})
         except ProviderError as error:
             return _json_error(error.code, str(error))
