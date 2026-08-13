@@ -38,8 +38,9 @@ Every final finding must be one of: CONFIRMED BY SOURCE, CONFIRMED BY TEST, READ
 - Plan: APPROVED.
 - Baseline source audit: CONFIRMED BY SOURCE AND RED TESTS.
 - Red baseline: 5 failed, 1 passed (`test_baseline_contract.py`).
-- Code: NOT PATCHED.
-- Unit tests: NOT RUN.
-- Contract tests: NOT RUN.
+- Code: PATCHED locally; no-E2E source hardening remains subject to final scoped Git verification.
+- Unit tests: TARGETED no-E2E RED/GREEN witnessed for model-authored prefetch, payload tamper, trust relabel, passed Hermes home, advanced collection override, release metadata, and uncalibrated annotate_all prefetch.
+- Contract tests: TARGETED no-E2E checkpoints passed; final full suite is still required before a commit.
 - Read-only integration: NOT RUN.
 - E2E mutations: NOT AUTHORIZED.
+- Production verdict: NOT E2E VERIFIED.

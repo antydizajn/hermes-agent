@@ -1187,34 +1187,34 @@ full local PTY suite pass. This earns UNIT/INTEGRATION evidence only, never E2E.
 
 ### CURRENT EXECUTION STATE
 
-- Current phase: `PUBLIC RELEASE PREPARED; COMMIT AND PUSH PENDING`
-- Active step: `PUBLISH-1 [>]`
-- Base progress: `40/43 tracked steps completed; strict E2E gates 26, 28, and 43 remain blocked`
-- Optional progress: `LOCKED UNTIL BASE DEFINITION OF DONE`
-- Last PLAN.md update UTC: `2026-08-11T10:55:55+02:00`
-- Last verified test level: `L4 INTEGRATION TESTED AGAINST CURRENT LOCAL FAKE/STATIC SUITE: 90 PASS IN 3.60S; NOT E2E TESTED`
-- Current blocker: `STRICT ISOLATED E2E CONFIGURATION IS NOT APPROVED/AVAILABLE`
-- Immediate next action: `Selectively stage reviewed plugin release files, commit, split the plugin subtree, force-push the user-authorized public target main, then read back the remote tree.`
+- Current phase: `LOCAL-HARDENING-1 FINAL NO-E2E VERIFICATION AND LOCAL COMMIT`
+- Active step: `LOCAL-HARDENING-1 [>]`
+- Base progress: `40/43 historical tracked steps completed; strict E2E gates 26, 28, and 43 remain blocked`
+- Optional progress: `OPTIONAL-A THROUGH OPTIONAL-G AUTHORIZED AFTER LOCAL-HARDENING-1 COMMIT`
+- Last PLAN.md update UTC: `2026-08-13T08:51:38+02:00`
+- Last verified test level: `TARGETED LOCAL FAKE/CONTRACT SUITES PASSED; FINAL FULL NO-E2E SUITE PENDING; NOT E2E TESTED`
+- Current blocker: `STRICT ISOLATED E2E CONFIGURATION IS NOT APPROVED/AVAILABLE; THIS DOES NOT BLOCK LOCAL OPTIONAL CODE TESTS`
+- Immediate next action: `Run final no-E2E suite, package/archive gate, append result at file end, selectively commit local provider files, then begin OPTIONAL-A.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `PUBLISH-1 [>]`
-- Goal: `Replace the user-authorized public target v1 with the current reviewed plugin artifact.`
-- Why now / dependency satisfied: `User explicitly ordered replacement push after target visibility was checked. Candidate scan is clean and current full local suite passed.`
+- Step ID: `LOCAL-HARDENING-1 [>]`
+- Goal: `Repair confirmed local provider defects and release artifacts without any public-repository action.`
+- Why now / dependency satisfied: `User explicitly cancelled public-repository work and authorized local Git commits only.`
 - Progress status: `IN_PROGRESS`
 - Verification level: `INTEGRATION_TESTED`
-- Started UTC: `2026-08-11T10:55:55+02:00`
-- Last updated UTC: `2026-08-11T10:55:55+02:00`
-- Files/scope: `Only reviewed files under PLUGIN_ROOT. Local monorepo Git index is used solely for selective plugin paths; target main replacement is explicitly user-authorized.`
-- Intended acceptance test: `Public candidate scan clean; full local PTY suite passes; staged scope is exact; subtree push succeeds; remote main tree readback matches expected plugin root files.`
-- Latest command/observation: `Target main root and public visibility inspected; current candidate scan found zero configured leak patterns.`
+- Started UTC: `2026-08-13T08:51:38+02:00`
+- Last updated UTC: `2026-08-13T09:07:53+02:00`
+- Files/scope: `Only local files under PLUGIN_ROOT; no core, SDK, config, secrets, collection, standalone/public repository, remote, or subtree action.`
+- Intended acceptance test: `Full fake-client no-E2E suite passes; staged diff is exact; staged archive contains LICENSE and excludes workflow ledgers/runtime artifacts; local commit contains only reviewed plugin paths.`
+- Latest command/observation: `Full no-E2E suite through PTY: 96 passed in 14.32s. Staged-index archive contains LICENSE and excludes PLAN/HANDOFF/AUDIT/LUNA/PROMPT workflow records.`
 - Exit code: `0`
-- Evidence/result: `90 passed in 3.60s through PTY with E2E runner excluded. Candidate scan examined 23 selected files and found no configured provider, token, RID, Bearer, or absolute-user-path pattern. No real E2E occurred.`
-- Blocker: `None for publication. Steps 26, 28, and 43 remain strict-E2E blocked and are not represented as production verification.`
-- Next action: `Selective stage, staged-diff review, commit, subtree split, forced target-main push, then remote readback.`
+- Evidence/result: `Python AST/compile and staged whitespace checks passed. Runtime SQLite/bytecode tracked-path scan is empty. No E2E, provider setup, credential load, backend call, or collection mutation occurred.`
+- Blocker: `Strict isolated E2E remains separately blocked; it does not block this local fake-client commit.`
+- Next action: `Append final evidence at file end, commit staged local hardening, then begin OPTIONAL-A.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1270,7 +1270,8 @@ fixture content, private collection names, or private absolute paths.
 | LUNA-2 | [x] | DONE | STATIC_CHECKED | 2026-08-11T09:51:41+02:00 | 2026-08-11T09:54:08+02:00 | 2026-08-11T09:54:08+02:00 | PLAN.md changed; LUNA-AUDIT-REPORT.md plus cited source/tests read only | Read report and validate current cited lines | 0 | Accepted L-03, L-04, L-06 as scoped gaps; L-05 restates blocked live-SDK evidence; rejected L-01, L-02, L-07; L-08 no defect. No implementation/test/E2E action. | Await explicit isolated E2E authorization or separately approved fix scope. |
 | L6-1 | [x] | DONE | INTEGRATION_TESTED | 2026-08-11T09:56:03+02:00 | 2026-08-11T10:15:02+02:00 | 2026-08-11T10:15:02+02:00 | PLAN.md; runner/test diff reviewed | Targeted guard suite, full PTY suite, scoped diff review | 0 | Guard rejects empty/relative/in-plugin paths and accepts external absolute path. 16 targeted passed in 1.51s; 89 full passed in 2.28s. RED phase not witnessed because changes pre-existed Terra's write attempt. No E2E runner invoked. | Strict E2E gates 26, 28, 43 remain blocked. |
 | L4-1 | [x] | DONE | INTEGRATION_TESTED | 2026-08-11T10:28:26+02:00 | 2026-08-11T10:55:55+02:00 | 2026-08-11T10:55:55+02:00 | PLAN.md; __init__.py; tests/test_public_release.py only | RED, targeted GREEN, privacy scan, full no-E2E PTY suite, diff review | 0 | RED witnessed; trusted_sources removal passed targeted GREEN. Current full suite: 90 passed in 3.60s. No E2E/backend action. | Publication is separately tracked as PUBLISH-1. |
-| PUBLISH-1 | [>] | IN_PROGRESS | INTEGRATION_TESTED | 2026-08-11T10:55:55+02:00 | 2026-08-11T10:55:55+02:00 | - | Reviewed PLUGIN_ROOT files only; local Git index and user-authorized target main | Public scan, current full suite, staged scope, commit, subtree push, remote readback | 0 | Candidate scan clean across 23 selected files; current full suite 90 passed in 3.60s. | Selectively stage current plugin artifact, commit, push target main, read remote tree. |
+| PUBLISH-1 | [-] | SKIPPED | NOT_APPLICABLE | 2026-08-11T10:55:55+02:00 | 2026-08-13T08:51:38+02:00 | 2026-08-13T08:51:38+02:00 | No public or standalone repository action | User supersession instruction | - | Local-only directive cancelled every remote/subtree/push action. | LOCAL-HARDENING-1 |
+| LOCAL-HARDENING-1 | [>] | IN_PROGRESS | INTEGRATION_TESTED | 2026-08-13T08:51:38+02:00 | 2026-08-13T09:07:53+02:00 | - | __init__.py; tests; README; manifest; LICENSE; attributes; AUDIT; PLAN | Targeted RED/GREEN; full no-E2E PTY suite; staged archive/index review | 0 | 96 passed in 14.32s. Staged archive has one LICENSE and no workflow ledger/runtime artifacts. | Append completion evidence, commit, then OPTIONAL-A |
 | HANDOFF-2 | [x] | DONE | STATIC_CHECKED | 2026-08-11T10:22:57+02:00 | 2026-08-11T10:25:07+02:00 | 2026-08-11T10:25:07+02:00 | PLAN.md; HANDOFF-TERRA-2.md only | Current status/log plus handoff creation | 0 | Handoff write receipt verified. No source/test operation during transfer. | Next session resumes L4 RED and Git gate from handoff. |
 | A1 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
 | A2 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
@@ -1336,3 +1337,11 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-11T10:41:38+02:00 | L4-1 | TEST | Focused public-release privacy scan ran through PTY after PLAN.md command evidence was neutralized. | Exit 0; 1 passed in 0.81s. No E2E runner or real backend path was invoked. | Run full local no-E2E PTY suite. |
 | 2026-08-11T10:43:07+02:00 | L4-1 | TEST | Full local suite ran through PTY with bytecode and pytest cache writes disabled; E2E runner was explicitly ignored. | Exit 0; 90 passed in 3.79s. This is current fake/static integration evidence only, not real-backend E2E. | Run scoped diff check/review before selective staging. |
 | 2026-08-11T10:55:55+02:00 | PUBLISH-1 | OPERATOR | User explicitly directed replacement of the public target v1 with the current plugin artifact. | Target public visibility was observed before outbound action; candidate scan across 23 selected files was clean and current no-E2E suite passed 90 in 3.60s. | Selectively stage, commit, replace target main, and verify remote readback. |
+| 2026-08-13T08:51:38+02:00 | LOCAL-HARDENING-1 | OPERATOR | User superseded public-repository work: ignore every standalone/public repository and repair only the local plugin tree with local Git commits. | PUBLISH-1 is cancelled; no remote/subtree/push action is allowed. Active work is bounded local trust, payload-integrity, profile-scope, advanced-override, relevance-prefetch, packaging, docs, tests, and PLAN tracking. | Complete local fake-client gates; do not invoke E2E or any backend. |
+| 2026-08-13T08:51:38+02:00 | LOCAL-HARDENING-1 | TEST | Witnessed RED/GREEN cycles for HMAC-signed model-authored prefetch, tampered returned payload, trust relabel, passed Hermes home, advanced collection override, release metadata, and uncalibrated annotate_all prefetch. | Source gates are PATCHED; targeted no-E2E suites passed at intermediate checkpoints. A fixture-only syntax error and fixture-wide max-distance overreach were detected and repaired before source acceptance. | Run final full no-E2E suite, archive/release gate, doc scan, staged-diff review, then commit only local plugin files. |
+| 2026-08-13T08:51:38+02:00 | OPTIONAL-A-G | OPERATOR | After LOCAL-HARDENING-1 is verified and committed, user explicitly authorized OPTIONAL-A through OPTIONAL-G. | This later user instruction overrides the prior optional-phase ordering restriction, but does not authorize E2E, backend calls, collection mutation, secret loading, core/config/SDK changes, or work outside PLUGIN_ROOT. | Execute optional capabilities sequentially with TDD, live PLAN append entries, scoped Git commits, and no false production claim. |
+| 2026-08-13T09:05:23+02:00 | LOCAL-HARDENING-1 | TOOLING | Initial final-suite command used a repository-relative path while the terminal remained in the plugin directory. | Git add failed before staging or test execution; no source/test result was produced and the pre-existing staged set was unchanged. | Re-run with explicit plugin-directory paths and retain this failed command as evidence. |
+| 2026-08-13T09:07:53+02:00 | LOCAL-HARDENING-1 | VERIFY | Full fake-client local suite ran through PTY with `run_test_collection_e2e.py` explicitly ignored. Staged-index archive was built from `git write-tree`. | Exit 0; 96 passed in 14.32s. Archive contains one LICENSE, no PLAN/HANDOFF/AUDIT/LUNA/PROMPT ledgers, and staged tracked scan contains no state/SQLite/bytecode paths. No backend, credentials, collection, or E2E action occurred. | Update active state and staged PLAN, commit only the 11 reviewed plugin files, then start OPTIONAL-A. |
+| 2026-08-13T09:10:16+02:00 | LOCAL-HARDENING-1 | GIT | Staged scope rechecked after tracker rewrite. | Exactly 11 plugin files staged; `AUDIT-CLEAN-20260813.md` remains preserved but untracked and outside the commit. Staged whitespace check is clean. | Run final suite after this PLAN append, then create local commit. |
+| 2026-08-13T09:15:41+02:00 | LOCAL-HARDENING-1 | HARNESS | A mistakenly broad repository test command collected unrelated Hermes suites under the system Python. | Exit 2 during collection because optional unrelated dependencies (`acp`, `prompt_toolkit`, `wcwidth`) are absent. This does not invalidate the dedicated plugin suite and no provider test ran in this command. No installation or unrelated test/core modification was performed. | Re-run only `PLUGIN_ROOT/tests` via explicit `cd` with E2E runner ignored; do not claim repository-wide verification. |
+| 2026-08-13T09:17:00+02:00 | LOCAL-HARDENING-1 | VERIFY | Dedicated plugin suite reran through explicit `cd` to PLUGIN_ROOT, with E2E runner ignored and a fresh in-plugin basetemp. | Exit 0; 96 passed in 11.15s. Staged scope remains exactly 11 local plugin files, with no staged path outside PLUGIN_ROOT. | Commit local hardening; then start OPTIONAL-A under the separately authorized scope. |

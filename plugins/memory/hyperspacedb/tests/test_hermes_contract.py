@@ -1,3 +1,4 @@
+import hashlib
 import inspect
 import json
 import queue
@@ -37,6 +38,54 @@ def test_setup_discovery_shows_unconfigured_hyperspace_provider(monkeypatch, tmp
     providers = {name: provider for name, _hint, provider in _get_available_providers()}
     assert "hyperspacedb" in providers
     assert len(providers["hyperspacedb"].get_config_schema()) >= 5
+
+
+def test_initialize_uses_passed_hermes_home_for_state_and_profile_scope(plugin, fake_client, tmp_path):
+    configured_home = tmp_path / "global-home"
+    active_home = tmp_path / "active-profile"
+    provider = plugin.HyperspaceDBMemoryProvider(
+        {
+            "collection": "test_memory",
+            "host": "127.0.0.1:50051",
+            "auto_store": False,
+            "ownership_hmac_key": "test-ownership-key",
+        },
+        client_factory=lambda **kwargs: fake_client,
+    )
+    provider.initialize("test-session", hermes_home=str(active_home))
+    try:
+        assert provider._state_path == active_home / "state" / "hyperspacedb" / "ledger.sqlite3"
+        assert provider._profile_scope == hashlib.sha256(
+            str(active_home.resolve()).encode("utf-8", "replace")
+        ).hexdigest()[:16]
+        assert provider._state_path != configured_home / "state" / "hyperspacedb" / "ledger.sqlite3"
+    finally:
+        provider.shutdown()
+
+
+def test_advanced_search_honors_authorized_collection_override(plugin, fake_client, tmp_path):
+    provider = plugin.HyperspaceDBMemoryProvider(
+        {
+            "collection": "primary",
+            "host": "127.0.0.1:50051",
+            "state_path": str(tmp_path / "override.sqlite3"),
+            "auto_store": False,
+            "ownership_hmac_key": "test-ownership-key",
+            "allow_collection_override": True,
+            "allowed_collections": ["alternate"],
+        },
+        client_factory=lambda **kwargs: fake_client,
+    )
+    provider.initialize("advanced-override")
+    try:
+        result = json.loads(provider.handle_tool_call("hyperspace_search_advanced", {
+            "query": "isolated query", "mode": "wave", "collection": "alternate",
+        }))
+        assert result["ok"] is True
+        assert fake_client.last_search["collection"] == "alternate"
+        assert fake_client.last_search["use_wave"] is True
+    finally:
+        provider.shutdown()
 
 
 def test_metric_mismatch_blocks_read_and_write(provider, fake_client):
@@ -107,7 +156,7 @@ def test_tool_boundary_rejects_unknown_arguments_before_handler(provider):
 
 def test_setup_schema_exposes_collection_contract_controls(plugin):
     keys = {item["key"] for item in plugin.HyperspaceDBMemoryProvider().get_config_schema()}
-    assert {"collection", "metric", "expected_dimension", "trust_mode"} <= keys
+    assert {"collection", "metric", "expected_dimension", "trust_mode", "max_distance"} <= keys
 
 
 def test_authenticated_write_requires_hmac_key(plugin, fake_client, tmp_path):

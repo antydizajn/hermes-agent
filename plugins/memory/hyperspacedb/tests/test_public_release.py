@@ -12,11 +12,47 @@ ROOT = Path(__file__).resolve().parents[1]
 TEXT_EXTENSIONS = {".py", ".md", ".yaml", ".yml", ".toml", ".txt"}
 
 
-def shipped_text():
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or path.suffix not in TEXT_EXTENSIONS:
+def _repository_root() -> Path:
+    output = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], cwd=ROOT, text=True
+    )
+    return Path(output.strip()).resolve()
+
+
+def _plugin_prefix(repository: Path) -> str:
+    try:
+        return ROOT.relative_to(repository).as_posix()
+    except ValueError as exc:
+        raise AssertionError("plugin root must be inside its Git repository") from exc
+
+
+def _tracked_plugin_paths():
+    repository = _repository_root()
+    prefix = _plugin_prefix(repository)
+    output = subprocess.check_output(
+        ["git", "ls-files", "--", prefix], cwd=repository, text=True
+    )
+    for tracked in output.splitlines():
+        if not tracked:
             continue
-        if "state" in path.parts:
+        relative = Path(tracked).relative_to(prefix) if prefix != "." else Path(tracked)
+        yield ROOT / relative
+
+
+def _is_export_ignored(path: Path) -> bool:
+    repository = _repository_root()
+    relative = path.resolve().relative_to(repository).as_posix()
+    output = subprocess.check_output(
+        ["git", "check-attr", "export-ignore", "--", relative],
+        cwd=repository,
+        text=True,
+    )
+    return output.rstrip().endswith(": set")
+
+
+def shipped_text():
+    for path in _tracked_plugin_paths():
+        if path.suffix not in TEXT_EXTENSIONS or _is_export_ignored(path):
             continue
         yield path, path.read_text(encoding="utf-8")
 
@@ -59,12 +95,31 @@ def test_runtime_artifacts_are_ignored_without_deleting_them():
     ignored = (ROOT / ".gitignore").read_text(encoding="utf-8")
     assert "/state/" in ignored
     assert "*.sqlite3" in ignored
+    assert "__pycache__/" in ignored
     probe = subprocess.run(
         ["git", "check-ignore", "-q", "state/example/ledger.sqlite3"],
         cwd=ROOT,
         check=False,
     )
     assert probe.returncode == 0
+
+
+def test_plugin_release_has_license_metadata_and_excludes_workflow_ledgers():
+    manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text(encoding="utf-8"))
+    assert manifest["license"] == "MIT"
+    license_path = ROOT / "LICENSE"
+    assert license_path.is_file()
+    assert "MIT License" in license_path.read_text(encoding="utf-8")
+    for name in (
+        "PLAN.md",
+        "PLAN-LUNA.md",
+        "HANDOFF.md",
+        "HANDOFF-TERRA-2.md",
+        "AUDIT.md",
+        "LUNA-AUDIT-REPORT.md",
+        "PROMPT_ITERATIONS.md",
+    ):
+        assert _is_export_ignored(ROOT / name)
 
 
 def test_readme_discloses_plaintext_ledger_and_permission_boundary():
@@ -147,15 +202,17 @@ def test_e2e_state_path_guard_accepts_absolute_external_path(monkeypatch):
 
 
 def test_tracked_release_manifest_excludes_runtime_artifacts():
-    repository = ROOT.parents[2]
-    prefix = "plugins/memory/hyperspacedb"
+    repository = _repository_root()
+    prefix = _plugin_prefix(repository)
     output = subprocess.check_output(
         ["git", "ls-files", "--", prefix], cwd=repository, text=True
     )
     tracked = [line for line in output.splitlines() if line]
-    assert f"{prefix}/__init__.py" in tracked
-    assert f"{prefix}/README.md" in tracked
-    assert f"{prefix}/plugin.yaml" in tracked
+    expected = f"{prefix}/" if prefix != "." else ""
+    assert f"{expected}__init__.py" in tracked
+    assert f"{expected}README.md" in tracked
+    assert f"{expected}plugin.yaml" in tracked
+    assert f"{expected}LICENSE" in tracked
     assert not any("/state/" in path for path in tracked)
     assert not any(path.endswith((".sqlite3", ".pyc")) for path in tracked)
 

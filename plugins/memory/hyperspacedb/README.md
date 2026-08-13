@@ -64,9 +64,15 @@ specific collection default.
   from the active Hermes home, not from a hardcoded user path.
 - `auto_store`: mirrors curated built-in memory writes.
 - `trust_mode`: `owned_only` or `annotate_all` for automatic prefetch.
-- `max_distance`: optional deployment-calibrated rejection threshold. There is
-  no guessed universal threshold because distance distributions are metric and
-  corpus dependent.
+  `owned_only` automatically injects only HMAC-authenticated records whose
+  signed source is `hermes-builtin-memory`. Explicit tool stores and every other
+  producer remain available through explicit search but are never auto-injected.
+  `annotate_all` permits mixed-producer automatic prefetch only when a calibrated
+  `max_distance` is explicitly configured; otherwise automatic prefetch is
+  fail-closed while explicit search remains available.
+- `max_distance`: metric- and corpus-calibrated rejection threshold. It is
+  required for `annotate_all` automatic prefetch; this plugin deliberately does
+  not invent a universal default cutoff.
 - `allow_collection_override`: off by default. Even when enabled, a collection
   must also appear in `allowed_collections`.
 - `allow_insecure_remote`: off by default. Enable only when gRPC is already
@@ -119,8 +125,14 @@ returned string as authoritative reference context. This plugin therefore:
 - distinguishes `NO_HIT` from timeout, authentication, availability,
   collection, and malformed-response failures.
 
-`owned_only` is the recommended public default. `annotate_all` exists for
-mixed-producer migration but expands the trust surface.
+`owned_only` is the recommended public default. It automatically injects only
+HMAC-authenticated records whose signed source is `hermes-builtin-memory`.
+Explicit tool stores and other producers remain explicit-search data. The provider
+also recomputes the logical digest from the returned payload before accepting
+provider ownership. `annotate_all` is for mixed-producer migration and expands
+the trust surface; automatic prefetch is fail-closed until a metric- and
+corpus-calibrated `max_distance` is configured. Explicit search remains
+available in that state and returns provenance plus distance.
 
 ## Local ledger confidentiality
 
@@ -144,9 +156,10 @@ snapshot operations are intentionally absent.
 
 ## Backup and restore
 
-`hermes backup` receives only the local SQLite identity ledger from
-`backup_paths()`. It does not archive an arbitrary server checkout and does not
-claim that copying a live database directory is a consistent snapshot.
+`hermes backup` receives an integrity-checked SQLite identity-ledger snapshot
+from `backup_paths()`, not the live WAL database. It does not archive an
+arbitrary server checkout and does not claim that copying a live database
+directory is a consistent snapshot.
 
 Back up the HyperspaceDB collection with the database's own verified snapshot or
 cold-backup procedure. Restore the database and ledger as one documented

@@ -46,6 +46,22 @@ def _owned_point(plugin, point_id, digest, *, payload=b"", metadata=None):
     }
 
 
+def _hmac_signed_point(
+    provider, *, content, trust="model-authored", source="hermes-explicit-tool"
+):
+    target = "memory"
+    digest = provider._logical_digest(target, source, content)
+    metadata = provider._internal_metadata(
+        target, source, trust, content, digest, None
+    )
+    return {
+        "id": 51,
+        "payload": content.encode("utf-8"),
+        "metadata": metadata,
+        "distance": 0.0,
+    }
+
+
 def test_p0_a_swallowed_timeout_never_becomes_no_hit(plugin, tmp_path):
     client = SwallowingSearchClient()
     provider = plugin.HyperspaceDBMemoryProvider(
@@ -129,23 +145,33 @@ def test_p0_e_forged_owner_metadata_is_not_accepted_as_authenticated(plugin, pro
         )
 
 
-def test_p0_f_model_authored_owned_record_is_not_auto_prefetched(plugin, provider, fake_client):
+def test_p0_f_model_authored_owned_record_is_not_auto_prefetched(provider, fake_client):
     provider._trust_mode = "owned_only"
     fake_client.search_results = [
-        {
-            "id": 51,
-            "payload": b"untrusted model authored claim",
-            "metadata": {
-                "_hs_owner": plugin._PLUGIN_ID,
-                "source": "hermes-explicit-tool",
-                "trust": "model-authored",
-                "target": "memory",
-            },
-            "distance": 0.0,
-        }
+        _hmac_signed_point(
+            provider, content="untrusted model authored claim", trust="model-authored"
+        )
     ]
     recalled = provider.prefetch("claim")
     assert "untrusted model authored claim" not in recalled
+
+
+def test_p0_i_owned_record_with_tampered_payload_is_not_auto_prefetched(provider, fake_client):
+    provider._trust_mode = "owned_only"
+    point = _hmac_signed_point(provider, content="original signed content")
+    point["payload"] = b"tampered returned content"
+    fake_client.search_results = [point]
+    recalled = provider.prefetch("claim")
+    assert "tampered returned content" not in recalled
+
+
+def test_p0_j_trust_relabel_cannot_promote_model_authored_record(provider, fake_client):
+    provider._trust_mode = "owned_only"
+    point = _hmac_signed_point(provider, content="relabelled model claim")
+    point["metadata"]["trust"] = "builtin-curated"
+    fake_client.search_results = [point]
+    recalled = provider.prefetch("claim")
+    assert "relabelled model claim" not in recalled
 
 
 def test_p0_g_shutdown_never_closes_ledger_while_worker_still_alive(provider):
@@ -191,13 +217,28 @@ def test_p0_f_owned_only_rejects_spoofed_source_and_legacy(provider, fake_client
 def test_p0_e_accepts_only_a_configured_previous_ownership_key(plugin, provider):
     provider._ownership_hmac_key = b"current-test-key"
     provider._previous_ownership_hmac_keys = (b"previous-test-key",)
-    digest = "a" * 64
-    metadata = {"_hs_owner": plugin._PLUGIN_ID, "_hs_profile": provider._profile_scope, "target": "memory", "source": "hermes-builtin-memory", "_hs_digest": digest}
-    payload = "\x1f".join(str(metadata[field]) for field in ("_hs_owner", "_hs_profile", "target", "source", "_hs_digest")).encode("utf-8")
-    metadata["_hs_owner_signature"] = plugin.hmac.new(b"previous-test-key", payload, plugin.hashlib.sha256).hexdigest()
-    assert provider._point_owner_matches({"metadata": metadata}, digest)
+    content = "previous-key authenticated content"
+    target = "memory"
+    source = "hermes-builtin-memory"
+    digest = provider._logical_digest(target, source, content)
+    metadata = {
+        "_hs_owner": plugin._PLUGIN_ID,
+        "_hs_profile": provider._profile_scope,
+        "target": target,
+        "source": source,
+        "_hs_digest": digest,
+    }
+    payload = "\x1f".join(
+        str(metadata[field])
+        for field in ("_hs_owner", "_hs_profile", "target", "source", "_hs_digest")
+    ).encode("utf-8")
+    metadata["_hs_owner_signature"] = plugin.hmac.new(
+        b"previous-test-key", payload, plugin.hashlib.sha256
+    ).hexdigest()
+    point = {"payload": content.encode("utf-8"), "metadata": metadata}
+    assert provider._point_owner_matches(point, digest)
     metadata["_hs_owner_signature"] = "not-a-valid-signature"
-    assert not provider._point_owner_matches({"metadata": metadata}, digest)
+    assert not provider._point_owner_matches(point, digest)
 
 
 def test_p0_c_delete_rejects_forged_owned_metadata(plugin, provider, fake_client):

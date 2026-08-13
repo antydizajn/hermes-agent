@@ -57,6 +57,10 @@ _RESERVED_META = {
     "_content", "_hs_owner", "_hs_digest", "_hs_profile", "_hs_schema",
     "source", "trust", "target", "ts", "timestamp", "record_id",
 }
+# owned_only is an automatic-context policy, not merely a provider-ownership check.
+# Source is covered by the ownership HMAC; trust is intentionally not used as the
+# authority because legacy records did not sign it.
+_PREFETCH_OWNED_SOURCES = frozenset({"hermes-builtin-memory"})
 _TRIVIAL_QUERIES = {
     "", "ok", "okay", "thanks", "thank you", "thx", "yes", "no", "y",
     "n", "continue", "go on", "done", "hello", "hi", "hey", "lol",
@@ -269,9 +273,13 @@ def _hermes_home() -> Path:
         return Path.home() / ".hermes"
 
 
-def _profile_scope() -> str:
-    raw = str(_hermes_home()).encode("utf-8", "replace")
+def _profile_scope_for_home(hermes_home: Path) -> str:
+    raw = str(hermes_home.expanduser().resolve()).encode("utf-8", "replace")
     return hashlib.sha256(raw).hexdigest()[:16]
+
+
+def _profile_scope() -> str:
+    return _profile_scope_for_home(_hermes_home())
 
 
 def _is_loopback_endpoint(host: str) -> bool:
@@ -833,9 +841,11 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         max_distance = self._config.get("max_distance")
         self._max_distance = float(max_distance) if max_distance not in (None, "") else None
         state_value = self._config.get("state_path")
+        self._state_path_explicit = bool(state_value)
+        self._profile_scope_explicit = bool(self._config.get("profile_scope"))
         self._state_path = (
             Path(str(state_value)).expanduser()
-            if state_value
+            if self._state_path_explicit
             else _hermes_home() / "state" / "hyperspacedb" / "ledger.sqlite3"
         )
         self._profile_scope = str(self._config.get("profile_scope") or _profile_scope())
@@ -1051,6 +1061,13 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
 
     def initialize(self, session_id: str, **kwargs: Any) -> None:
         self._session_id = session_id
+        hermes_home_value = str(kwargs.get("hermes_home") or "").strip()
+        if hermes_home_value:
+            active_home = Path(hermes_home_value).expanduser().resolve()
+            if not self._state_path_explicit:
+                self._state_path = active_home / "state" / "hyperspacedb" / "ledger.sqlite3"
+            if not self._profile_scope_explicit:
+                self._profile_scope = _profile_scope_for_home(active_home)
         self._validate_config()
         if self._ledger is None:
             self._ledger = IdentityLedger(self._state_path)
@@ -1087,6 +1104,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             {"key": "top_k", "description": "Automatic prefetch result count", "default": str(_DEFAULT_TOP_K)},
             {"key": "auto_store", "description": "Mirror curated built-in memory writes", "default": "true", "choices": ["true", "false"]},
             {"key": "trust_mode", "description": "Automatic prefetch trust policy", "default": "owned_only", "choices": ["owned_only", "annotate_all"]},
+            {"key": "max_distance", "description": "Metric-calibrated maximum distance required for annotate_all automatic prefetch", "default": ""},
         ]
 
     def save_config(self, values: dict, hermes_home: str) -> None:
@@ -1111,9 +1129,17 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         )
 
     def _search_records(
-        self, query: str, limit: int, *, mode: str = "standard"
+        self,
+        query: str,
+        limit: int,
+        *,
+        mode: str = "standard",
+        collection: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         self._require_collection_contract()
+        selected_collection = str(collection or self._collection).strip()
+        if not selected_collection:
+            raise ConfigurationError("collection is required")
         clean_query = str(query).strip()
         if not clean_query:
             raise ConfigurationError("query is required")
@@ -1125,7 +1151,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         kwargs: Dict[str, Any] = {
             "vector": list(vector),
             "top_k": bounded,
-            "collection": self._collection,
+            "collection": selected_collection,
             "include_payload": True,
         }
         if mode == "wasserstein":
@@ -1160,7 +1186,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             trust = str(meta.get("trust") or "unknown")[:100]
             authenticated_owner = self._point_owner_matches(raw, str(meta.get("_hs_digest") or ""))
             if self._trust_mode == "owned_only":
-                allowed = authenticated_owner
+                allowed = authenticated_owner and source in _PREFETCH_OWNED_SOURCES
             elif self._trust_mode == "annotate_all":
                 allowed = True
             else:
@@ -1206,6 +1232,8 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
 
     def prefetch(self, query: str, *, session_id: str = "") -> str:
         if not query or _is_trivial_query(query):
+            return ""
+        if self._trust_mode == "annotate_all" and self._max_distance is None:
             return ""
         try:
             records = self._search_records(query, self._top_k)
@@ -1270,6 +1298,14 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         if meta.get("_hs_owner") != _PLUGIN_ID or meta.get("_hs_digest") != digest:
             return False
         if meta.get("_hs_profile") != self._profile_scope:
+            return False
+        target = str(meta.get("target") or "")
+        source = str(meta.get("source") or "")
+        content = _extract_content(point)
+        if not target or not source or not content:
+            return False
+        expected_digest = self._logical_digest(target, source, content)
+        if not hmac.compare_digest(str(meta.get("_hs_digest") or ""), expected_digest):
             return False
         supplied = str(meta.get("_hs_owner_signature") or "")
         keys = (self._ownership_hmac_key, *self._previous_ownership_hmac_keys)
@@ -1871,8 +1907,8 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             return _json_error("INVALID_ARGUMENT", "mode must be wasserstein or wave")
         limit = _bounded_int(args.get("top_k"), 5, 1, 20)
         try:
-            self._resolve_collection(args)
-            records = self._search_records(query, limit, mode=mode)
+            collection = self._resolve_collection(args)
+            records = self._search_records(query, limit, mode=mode, collection=collection)
             return self._tool_json({
                 "ok": True,
                 "mode": mode,
