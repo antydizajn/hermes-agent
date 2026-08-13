@@ -1107,8 +1107,8 @@ No batch operation may bypass the single-record invariants proven in the base.
 
 ### Optional-phase execution order
 
-A1. [ ] Freeze the verified base test result and record its evidence hash.
-A2. [ ] Implement and test `hyperspace_audit`.
+A1. [x] Freeze the verified base test result and record its evidence hash.
+A2. [x] Implement and test `hyperspace_audit`.
 A3. [ ] Add bounded `points` to `hyperspace_graph`.
 A4. [ ] Add read-only `count`, `digest`, and `cache_stats` to admin.
 A5. [ ] Add multiplexed read-only geometry only if required by users.
@@ -1187,14 +1187,14 @@ full local PTY suite pass. This earns UNIT/INTEGRATION evidence only, never E2E.
 
 ### CURRENT EXECUTION STATE
 
-- Current phase: `LOCAL-HARDENING-1 FINAL NO-E2E VERIFICATION AND LOCAL COMMIT`
-- Active step: `LOCAL-HARDENING-1 [>]`
+- Current phase: `OPTIONAL-A READ-ONLY AUDIT TOOL - LOCAL COMMIT`
+- Active step: `A2 [>]`
 - Base progress: `40/43 historical tracked steps completed; strict E2E gates 26, 28, and 43 remain blocked`
-- Optional progress: `OPTIONAL-A THROUGH OPTIONAL-G AUTHORIZED AFTER LOCAL-HARDENING-1 COMMIT`
-- Last PLAN.md update UTC: `2026-08-13T08:51:38+02:00`
-- Last verified test level: `TARGETED LOCAL FAKE/CONTRACT SUITES PASSED; FINAL FULL NO-E2E SUITE PENDING; NOT E2E TESTED`
-- Current blocker: `STRICT ISOLATED E2E CONFIGURATION IS NOT APPROVED/AVAILABLE; THIS DOES NOT BLOCK LOCAL OPTIONAL CODE TESTS`
-- Immediate next action: `Run final no-E2E suite, package/archive gate, append result at file end, selectively commit local provider files, then begin OPTIONAL-A.`
+- Optional progress: `A1 [x] baseline tree frozen; A2 [>] audit test/implementation verified; commit pending`
+- Last PLAN.md update UTC: `2026-08-13T09:35:21+02:00`
+- Last verified test level: `OPTIONAL-A INTEGRATION TESTED AGAINST LOCAL LEDGER/FAKE CLIENT: 97 PASS IN 10.53S; NOT E2E TESTED`
+- Current blocker: `No E2E authorization; OPTIONAL capabilities remain fake-client and local-ledger only`
+- Immediate next action: `Stage exact A2 source/test/doc/tracker files, verify staged scope, commit locally, append commit evidence, then start OPTIONAL-B.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
@@ -1345,3 +1345,10 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-13T09:10:16+02:00 | LOCAL-HARDENING-1 | GIT | Staged scope rechecked after tracker rewrite. | Exactly 11 plugin files staged; `AUDIT-CLEAN-20260813.md` remains preserved but untracked and outside the commit. Staged whitespace check is clean. | Run final suite after this PLAN append, then create local commit. |
 | 2026-08-13T09:15:41+02:00 | LOCAL-HARDENING-1 | HARNESS | A mistakenly broad repository test command collected unrelated Hermes suites under the system Python. | Exit 2 during collection because optional unrelated dependencies (`acp`, `prompt_toolkit`, `wcwidth`) are absent. This does not invalidate the dedicated plugin suite and no provider test ran in this command. No installation or unrelated test/core modification was performed. | Re-run only `PLUGIN_ROOT/tests` via explicit `cd` with E2E runner ignored; do not claim repository-wide verification. |
 | 2026-08-13T09:17:00+02:00 | LOCAL-HARDENING-1 | VERIFY | Dedicated plugin suite reran through explicit `cd` to PLUGIN_ROOT, with E2E runner ignored and a fresh in-plugin basetemp. | Exit 0; 96 passed in 11.15s. Staged scope remains exactly 11 local plugin files, with no staged path outside PLUGIN_ROOT. | Commit local hardening; then start OPTIONAL-A under the separately authorized scope. |
+| 2026-08-13T09:18:31+02:00 | LOCAL-HARDENING-1 | GIT | Local commit `1f2fcd519` created from 11 reviewed plugin files. | Commit contains only local provider code/tests/docs/metadata; public/standalone repositories were not accessed or modified. `AUDIT-CLEAN-20260813.md` remains preserved and untracked. | Freeze OPTIONAL-A baseline and begin its TDD cycle. |
+| 2026-08-13T09:18:31+02:00 | A1/A2 | START | Optional baseline frozen at local commit `1f2fcd519`; user authorized OPTIONAL-A through OPTIONAL-G after that commit. | A2 is active. Scope is local provider source/tests/README/PLAN only; no E2E/backend/secrets/core/SDK/config work. | Add A2 aggregate-only audit test, witness RED, then minimal implementation. |
+| 2026-08-13T09:20:00+02:00 | A2 | TEST | Wrote the A2 aggregate-only audit contract and ran it with the fake client/local ledger. | Expected RED: exit 1, because `hyperspace_audit` is not yet registered. The test asserts no memory content, raw error, digest, or point ID escapes. | Add only local ledger aggregate queries, audit schema, and a read-only tool handler; no RPC path. |
+| 2026-08-13T09:26:06+02:00 | A2 | TOOLING | First v3 ledger-migration patch accidentally replaced the v2 retry-table creation block. The source was corrected immediately to preserve v1->v2->v3 order. | Migration suite then failed only because its historical assertions still expected schema v2, while live source now correctly reports v3. This is a test-contract update required by the new local schema, not a backend failure. | Update migration assertions for v3 and verify v2 retry table plus v3 profile-scope column before wiring audit handler. |
+| 2026-08-13T09:32:59+02:00 | A2 | TEST | First GREEN run verified code paths but audit test incorrectly expected an empty fake-client history even though provider initialization already probes health/stats. | The audit handler itself made no new RPC; assertion was narrowed to compare call history before and after the audit invocation. | Re-run the same targeted A2/migration/contract suite. |
+| 2026-08-13T09:34:01+02:00 | A2 | VERIFY | Aggregate-only audit, v3 migration, and tool-contract suite reran through PTY using fake client/local ledger only. | Exit 0; 24 passed in 1.35s. Audit exposes profile-scoped state/failure aggregates and schema version only; no content, raw error, digest, ID, or new RPC call escapes. | Run complete local no-E2E suite, staged review, then commit OPTIONAL-A. |
+| 2026-08-13T09:35:21+02:00 | A2 | VERIFY | Full local plugin suite reran with E2E runner ignored. | Exit 0; 97 passed in 10.53s. `hyperspace_audit` is read-only over the local ledger, profile-scoped, aggregate-only, and makes no new client RPC. | Stage exact A2 files, commit locally, then start A3. |

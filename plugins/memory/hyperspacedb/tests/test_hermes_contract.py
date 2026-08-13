@@ -17,10 +17,10 @@ def test_current_on_memory_write_signature(plugin):
     assert list(sig.parameters)[:5] == ["self", "action", "target", "content", "metadata"]
 
 
-def test_all_eight_tool_names_are_unique(provider):
+def test_all_nine_tool_names_are_unique(provider):
     names = [s["name"] for s in provider.get_tool_schemas()]
     assert names == [
-        "hyperspace_search", "hyperspace_store", "hyperspace_status",
+        "hyperspace_search", "hyperspace_store", "hyperspace_status", "hyperspace_audit",
         "hyperspace_graph", "hyperspace_hierarchy", "hyperspace_clusters",
         "hyperspace_search_advanced", "hyperspace_admin",
     ]

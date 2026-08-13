@@ -47,6 +47,7 @@ _TOOL_ALLOWED_ARGS = {
     "hyperspace_search": {"query", "limit"},
     "hyperspace_store": {"content", "metadata"},
     "hyperspace_status": set(),
+    "hyperspace_audit": {"operation"},
     "hyperspace_graph": {"operation", "start_id", "limit", "max_depth", "max_nodes", "collection"},
     "hyperspace_hierarchy": {"operation", "root_id", "id", "limit", "max_depth", "collection"},
     "hyperspace_clusters": {"max_clusters", "min_cluster_size", "max_nodes", "collection"},
@@ -489,7 +490,7 @@ class IdentityLedger:
                 self._db.execute("PRAGMA journal_mode=WAL")
                 self._db.execute("PRAGMA synchronous=FULL")
                 version = int(self._db.execute("PRAGMA user_version").fetchone()[0])
-                if version > 2:
+                if version > 3:
                     raise ConfigurationError("Ledger schema is newer than this plugin")
                 if version < 1:
                     self._db.execute("BEGIN IMMEDIATE")
@@ -505,8 +506,33 @@ class IdentityLedger:
                 if version < 2:
                     self._db.execute("BEGIN IMMEDIATE")
                     try:
-                        self._db.execute("CREATE TABLE IF NOT EXISTS reconciliation_retries (digest TEXT PRIMARY KEY, attempts INTEGER NOT NULL, next_retry_epoch REAL NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(digest) REFERENCES records(digest))")
+                        self._db.execute(
+                            "CREATE TABLE IF NOT EXISTS reconciliation_retries "
+                            "(digest TEXT PRIMARY KEY, attempts INTEGER NOT NULL, "
+                            "next_retry_epoch REAL NOT NULL, updated_at TEXT NOT NULL, "
+                            "FOREIGN KEY(digest) REFERENCES records(digest))"
+                        )
                         self._db.execute("PRAGMA user_version=2")
+                        self._db.commit()
+                    except Exception:
+                        self._db.rollback()
+                        raise
+                if version < 3:
+                    self._db.execute("BEGIN IMMEDIATE")
+                    try:
+                        columns = {
+                            str(row[1])
+                            for row in self._db.execute("PRAGMA table_info(mutation_failures)")
+                        }
+                        if "profile_scope" not in columns:
+                            self._db.execute(
+                                "ALTER TABLE mutation_failures ADD COLUMN profile_scope TEXT NOT NULL DEFAULT ''"
+                            )
+                        self._db.execute(
+                            "CREATE INDEX IF NOT EXISTS idx_failures_profile_code "
+                            "ON mutation_failures(profile_scope, error_code)"
+                        )
+                        self._db.execute("PRAGMA user_version=3")
                         self._db.commit()
                     except Exception:
                         self._db.rollback()
@@ -572,17 +598,50 @@ class IdentityLedger:
             self._db.commit()
 
     def record_failure(
-        self, action: str, target: str, content: str, old_text: str,
+        self, profile_scope: str, action: str, target: str, content: str, old_text: str,
         error_code: str, error: str,
     ) -> None:
         with self._lock:
             self._db.execute(
                 "INSERT INTO mutation_failures "
-                "(action,target,content,old_text,error_code,error,created_at) "
-                "VALUES (?,?,?,?,?,?,?)",
-                (action, target, content, old_text, error_code, error[:1_000], _utc_now()),
+                "(profile_scope,action,target,content,old_text,error_code,error,created_at) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    profile_scope,
+                    action,
+                    target,
+                    content,
+                    old_text,
+                    error_code,
+                    error[:1_000],
+                    _utc_now(),
+                ),
             )
             self._db.commit()
+
+    def audit_summary(self, profile_scope: str) -> Dict[str, Any]:
+        """Return profile-scoped aggregates only; never return record content or IDs."""
+        with self._lock:
+            status_rows = self._db.execute(
+                "SELECT status, COUNT(*) FROM records WHERE profile_scope=? "
+                "GROUP BY status ORDER BY status",
+                (profile_scope,),
+            ).fetchall()
+            failure_rows = self._db.execute(
+                "SELECT error_code, COUNT(*) FROM mutation_failures WHERE profile_scope=? "
+                "GROUP BY error_code ORDER BY error_code",
+                (profile_scope,),
+            ).fetchall()
+            schema_version = int(self._db.execute("PRAGMA user_version").fetchone()[0])
+        records_by_status = {str(status): int(count) for status, count in status_rows}
+        failure_codes = {str(code): int(count) for code, count in failure_rows}
+        return {
+            "records_by_status": records_by_status,
+            "reconciliation_backlog": int(records_by_status.get("delete_pending", 0)),
+            "failure_count": sum(failure_codes.values()),
+            "failure_codes": failure_codes,
+            "ledger_schema_version": schema_version,
+        }
 
     def active_records(self, target: Optional[str] = None) -> List[Dict[str, Any]]:
         sql = (
@@ -702,6 +761,19 @@ HSDB_STATUS_SCHEMA = {
     "description": "Return backend health, configured scope, collection stats, and write queue state.",
     "parameters": {"type": "object", "properties": {}, "required": []},
 }
+
+HSDB_AUDIT_SCHEMA = {
+    "name": "hyperspace_audit",
+    "description": "Return local provider-state aggregates without memory content, IDs, digests, or raw errors.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "operation": {"type": "string", "enum": ["summary"]},
+        },
+        "required": ["operation"],
+    },
+}
+
 
 HSDB_GRAPH_SCHEMA = {
     "name": "hyperspace_graph",
@@ -1694,9 +1766,13 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                 self._mark_error(error)
                 if self._ledger is not None:
                     self._ledger.record_failure(
-                        action, target, content,
+                        self._profile_scope,
+                        action,
+                        target,
+                        content,
                         str((metadata or {}).get("old_text") or ""),
-                        error.code, str(error),
+                        error.code,
+                        str(error),
                     )
                 else:
                     self._failed_writes += 1
@@ -1725,9 +1801,13 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         except queue.Full:
             if self._ledger is not None:
                 self._ledger.record_failure(
-                    action, target, content,
+                    self._profile_scope,
+                    action,
+                    target,
+                    content,
                     str((metadata or {}).get("old_text") or ""),
-                    "WRITE_QUEUE_FULL", "Ordered write queue is full",
+                    "WRITE_QUEUE_FULL",
+                    "Ordered write queue is full",
                 )
             else:
                 self._failed_writes += 1
@@ -1758,6 +1838,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             HSDB_SEARCH_SCHEMA,
             HSDB_STORE_SCHEMA,
             HSDB_STATUS_SCHEMA,
+            HSDB_AUDIT_SCHEMA,
             HSDB_GRAPH_SCHEMA,
             HSDB_HIERARCHY_SCHEMA,
             HSDB_CLUSTERS_SCHEMA,
@@ -1827,6 +1908,13 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             result = {"ok": False, **self.status_snapshot()}
             result["error"] = {"code": error.code, "message": str(error)}
             return self._tool_json(result)
+
+    def _tool_audit(self, args: Dict[str, Any]) -> str:
+        if str(args.get("operation") or "") != "summary":
+            return _json_error("INVALID_ARGUMENT", "operation must be summary")
+        if self._ledger is None:
+            return _json_error("AUDIT_UNAVAILABLE", "Provider is not initialized")
+        return self._tool_json({"ok": True, "result": self._ledger.audit_summary(self._profile_scope)})
 
     def _tool_graph(self, args: Dict[str, Any]) -> str:
         try:
@@ -1938,6 +2026,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             "hyperspace_search": self._tool_search,
             "hyperspace_store": self._tool_store,
             "hyperspace_status": lambda unused: self._tool_status(),
+            "hyperspace_audit": self._tool_audit,
             "hyperspace_graph": self._tool_graph,
             "hyperspace_hierarchy": self._tool_hierarchy,
             "hyperspace_clusters": self._tool_clusters,
