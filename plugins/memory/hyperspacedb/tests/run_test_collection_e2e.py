@@ -201,6 +201,7 @@ def main() -> None:
                 len(rows) == 1 and rows[0]["content"] == new
                 and bool(client.get_points([rows[0]["external_id"]], collection=target))
             )
+            removed_external_id = rows[0]["external_id"] if len(rows) == 1 else None
 
             provider.on_memory_write(
                 "remove", "memory", "", {"old_text": f"new fact {nonce}"}
@@ -208,7 +209,11 @@ def main() -> None:
             if not provider.flush_writes(timeout=E2E_FLUSH_TIMEOUT_SECONDS):
                 raise RuntimeError("Remove queue did not drain")
             rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
-            summary["remove_verified"] = rows == []
+            summary["remove_verified"] = (
+                rows == []
+                and removed_external_id is not None
+                and not client.get_points([removed_external_id], collection=target)
+            )
         finally:
             provider.shutdown()
 

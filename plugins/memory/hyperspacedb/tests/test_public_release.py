@@ -244,6 +244,12 @@ def test_e2e_self_seed_is_idempotent_and_target_scoped(monkeypatch):
     assert all(collection == target for collection in collection_calls)
 
 
+def test_e2e_runner_verifies_remote_absence_after_remove():
+    text = (ROOT / "tests" / "run_test_collection_e2e.py").read_text(encoding="utf-8")
+    assert 'removed_external_id = rows[0]["external_id"]' in text
+    assert 'not client.get_points([removed_external_id], collection=target)' in text
+
+
 def _load_e2e_runner(monkeypatch):
     fake_hyperspace = types.ModuleType("hyperspace")
     fake_hyperspace.HyperspaceClient = object
