@@ -206,6 +206,17 @@ def test_setup_schema_exposes_collection_contract_controls(plugin):
     assert {"collection", "metric", "expected_dimension", "trust_mode", "max_distance"} <= keys
 
 
+def test_explicit_long_rpc_timeout_is_not_clamped_to_production_default(plugin):
+    provider = plugin.HyperspaceDBMemoryProvider({
+        "collection": "test_memory",
+        "host": "127.0.0.1:50051",
+        "auto_store": False,
+        "rpc_timeout": 60.0,
+    })
+
+    assert provider._rpc_timeout == 60.0
+
+
 def test_authenticated_write_requires_hmac_key(plugin, fake_client, tmp_path):
     config = {
         "collection": "test_memory",

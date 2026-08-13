@@ -920,7 +920,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             self._config.get("max_search_results"), _DEFAULT_MAX_SEARCH_RESULTS, 1, 100
         )
         self._rpc_timeout = _bounded_float(
-            self._config.get("rpc_timeout"), _DEFAULT_RPC_TIMEOUT, 0.1, 7.0
+            self._config.get("rpc_timeout"), _DEFAULT_RPC_TIMEOUT, 0.1, 60.0
         )
         self._max_content_chars = _bounded_int(
             self._config.get("max_content_chars"), _DEFAULT_MAX_CONTENT, 100, 200_000
