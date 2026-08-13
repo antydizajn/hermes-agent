@@ -147,6 +147,14 @@ def test_readme_documents_hmac_environment_boundary():
     assert "do not put the key in a public configuration file" in text
 
 
+def test_readme_matches_current_nine_tool_and_capability_contract():
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "exactly nine bounded tools" in text
+    assert "hyperspace_audit" in text
+    assert "capability handle" in text
+    assert "raw backend point IDs" in text
+
+
 def test_manifest_version_and_dependency_contract_match_readme():
     manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text(encoding="utf-8"))
     assert re.fullmatch(r"\d+\.\d+\.\d+", str(manifest["version"]))

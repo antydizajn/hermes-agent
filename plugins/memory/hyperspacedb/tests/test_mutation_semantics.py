@@ -68,10 +68,11 @@ def test_uint32_collision_never_overwrites_foreign_point(provider, fake_client, 
     assert fake_client.points[first]["payload"] == b"foreign"
 
 
-def test_store_tool_is_idempotent_and_returns_record_identity(provider, fake_client):
+def test_store_tool_is_idempotent_and_returns_capability_identity(provider, fake_client):
     first = json.loads(provider.handle_tool_call("hyperspace_store", {"content": "tool fact"}))
     second = json.loads(provider.handle_tool_call("hyperspace_store", {"content": "tool fact"}))
     assert first["ok"] is True
     assert second["ok"] is True
-    assert first["record_id"] == second["record_id"]
+    assert "record_id" not in first
+    assert first["handle"] == second["handle"]
     assert len(fake_client.points) == 1

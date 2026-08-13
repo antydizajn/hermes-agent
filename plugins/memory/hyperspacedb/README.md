@@ -118,7 +118,7 @@ Automatic prefetch is dangerous because Hermes currently injects the provider's
 returned string as authoritative reference context. This plugin therefore:
 
 - retrieves standard sidecar payloads with `include_payload=True`;
-- preserves ID, distance, source, trust, target, and timestamp;
+- preserves opaque capability handles, distance, source, trust, target, and timestamp without exposing raw backend point IDs;
 - marks every item as memory data, never instructions;
 - quarantines common instruction-injection patterns from automatic prefetch;
 - bounds query, count, content, graph, cluster, and output sizes;
@@ -140,16 +140,22 @@ The identity ledger is a local SQLite file containing plaintext memory content n
 
 ## Tools
 
-The plugin exposes exactly eight bounded tools:
+The plugin exposes exactly nine bounded tools:
 
 - `hyperspace_search`
 - `hyperspace_store`
 - `hyperspace_status`
+- `hyperspace_audit`
 - `hyperspace_graph`
 - `hyperspace_hierarchy`
 - `hyperspace_clusters`
 - `hyperspace_search_advanced`
 - `hyperspace_admin`
+
+Search and store responses issue opaque, short-lived capability handles. Graph and
+hierarchy tools accept only handles minted by the same live provider profile,
+session, and collection; raw backend point IDs are neither accepted nor returned.
+Cluster output is limited to cluster cardinalities, not member identifiers.
 
 The admin tool is read-only. Collection creation, deletion, rebuild, vacuum, and
 snapshot operations are intentionally absent.

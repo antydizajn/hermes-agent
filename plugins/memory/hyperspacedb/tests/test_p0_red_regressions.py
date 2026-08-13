@@ -123,9 +123,11 @@ def test_p0_c_legacy_delete_fails_closed_when_remote_content_unavailable(plugin,
 
 def test_p0_d_tool_output_is_valid_json_after_budget_enforcement(provider):
     provider._max_tool_output_chars = 64
+    handle = provider._mint_point_capability(1, provider._collection)
+    assert handle is not None
     provider._call = lambda *args, **kwargs: {"payload": "x" * 512}  # type: ignore[method-assign]
     reply = provider.handle_tool_call(
-        "hyperspace_graph", {"operation": "node", "start_id": 1}
+        "hyperspace_graph", {"operation": "node", "handle": handle}
     )
     parsed = json.loads(reply)
     assert parsed["output_truncated"] is True
