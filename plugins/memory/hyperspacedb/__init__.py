@@ -1161,17 +1161,40 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         self._last_error = ""
         return self._health
 
+    @staticmethod
+    def _collection_contract_fields(details: Any) -> Tuple[str, Any]:
+        """Extract one unambiguous metric/dimension pair from SDK collection data."""
+        if not isinstance(details, dict):
+            return "", None
+        metric = str(details.get("metric") or "").strip().lower()
+        dimension = details.get("dimension", details.get("dimensions"))
+        schema = details.get("schema")
+        if not isinstance(schema, dict):
+            return metric, dimension
+        components = schema.get("components")
+        if not isinstance(components, list) or len(components) != 1:
+            return metric, dimension
+        component = components[0]
+        if not isinstance(component, dict):
+            return metric, dimension
+        if not metric:
+            metric = str(component.get("metric") or "").strip().lower()
+        if dimension in (None, ""):
+            dimension = component.get("full_dimension", component.get("dimension"))
+        return metric, dimension
+
     def _verify_collection_contract(self, stats: Any) -> None:
-        details = stats if isinstance(stats, dict) else {}
-        observed_metric = str(details.get("metric") or "").strip().lower()
-        observed_dimension = details.get("dimension", details.get("dimensions"))
+        observed_metric, observed_dimension = self._collection_contract_fields(stats)
         if not observed_metric or observed_dimension in (None, ""):
             collections = self._call("list_collections")
             if isinstance(collections, list):
                 for item in collections:
                     if isinstance(item, dict) and str(item.get("name") or "") == self._collection:
-                        observed_metric = str(item.get("metric") or "").strip().lower()
-                        observed_dimension = item.get("dimension", item.get("dimensions"))
+                        fallback_metric, fallback_dimension = self._collection_contract_fields(item)
+                        if not observed_metric:
+                            observed_metric = fallback_metric
+                        if observed_dimension in (None, ""):
+                            observed_dimension = fallback_dimension
                         break
         if not observed_metric:
             raise BackendMalformed("Collection metric could not be verified")

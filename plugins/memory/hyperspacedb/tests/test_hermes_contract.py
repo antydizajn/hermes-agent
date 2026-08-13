@@ -126,6 +126,45 @@ def test_metric_fallback_uses_list_collections(provider, fake_client):
     assert provider._collection_contract_verified is True
 
 
+def test_schema_component_contract_verifies_live_sdk_shape(provider, fake_client):
+    schema = {
+        "components": [{
+            "name": "default",
+            "metric": "lorentz",
+            "full_dimension": 129,
+            "weight": 1.0,
+        }],
+        "cascade_pipeline": [],
+    }
+    fake_client.stats_value = {"schema": schema}
+    fake_client.list_collections = lambda: [{"name": "test_memory", "schema": schema}]
+    provider._expected_dimension = 129
+
+    provider.initialize("schema-component-contract")
+
+    assert provider._collection_contract_verified is True
+    assert provider._configured_metric == "lorentz"
+    assert provider._observed_dimension == 129
+
+
+def test_multi_component_schema_fails_closed_when_metric_dimension_are_not_flat(provider, fake_client):
+    fake_client.stats_value = {
+        "schema": {
+            "components": [
+                {"name": "a", "metric": "lorentz", "full_dimension": 129},
+                {"name": "b", "metric": "lorentz", "full_dimension": 129},
+            ]
+        }
+    }
+    fake_client.list_collections = lambda: [{"name": "test_memory", "schema": fake_client.stats_value["schema"]}]
+    provider._expected_dimension = 129
+
+    provider.initialize("ambiguous-schema-contract")
+
+    assert provider._health == "DEGRADED"
+    assert provider._collection_contract_verified is False
+
+
 def test_tool_results_carry_a_non_executable_data_boundary(provider):
     for name, args in (
         ("hyperspace_search", {"query": "ordinary query"}),
