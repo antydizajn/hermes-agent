@@ -1,7 +1,7 @@
 # HyperspaceDB Memory Provider for Hermes Agent
 
 A public Hermes Agent `MemoryProvider` backed by an existing HyperspaceDB
-collection. The plugin mirrors curated built-in memory mutations, exposes eight
+collection. The plugin mirrors curated built-in memory mutations, exposes ten
 bounded memory tools, and keeps a local identity ledger so `add`, `replace`, and
 `remove` do not silently diverge.
 

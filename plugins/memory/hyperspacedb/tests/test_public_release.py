@@ -149,6 +149,8 @@ def test_readme_documents_hmac_environment_boundary():
 
 def test_readme_matches_current_ten_tool_and_capability_contract():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
+    assert "exposes eight bounded memory tools" not in normalized
     assert "exactly ten bounded tools" in text
     assert "hyperspace_audit" in text
     assert "hyperspace_geometry" in text

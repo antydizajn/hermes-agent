@@ -198,6 +198,35 @@ def test_ownership_hmac_environment_value_overrides_legacy_config(plugin, monkey
     assert provider._ownership_hmac_key == b"environment-key"
 
 
+def test_credential_values_resolve_exact_config_env_reference_and_fail_closed_when_absent(plugin, monkeypatch):
+    monkeypatch.setenv("TEST_HSDB_API_KEY", "resolved-test-key")
+    referenced = plugin.HyperspaceDBMemoryProvider({
+        "collection": "test_memory",
+        "host": "127.0.0.1:50051",
+        "auto_store": False,
+        "api_key_env": "TEST_HSDB_API_KEY",
+        "api_key": "TEST_HSDB_API_KEY",
+    })
+    missing_reference = plugin.HyperspaceDBMemoryProvider({
+        "collection": "test_memory",
+        "host": "127.0.0.1:50051",
+        "auto_store": False,
+        "api_key_env": "UNSET_HSDB_PRIMARY_ENV",
+        "api_key": "UNSET_HSDB_PRIMARY_ENV",
+    })
+    literal = plugin.HyperspaceDBMemoryProvider({
+        "collection": "test_memory",
+        "host": "127.0.0.1:50051",
+        "auto_store": False,
+        "api_key_env": "UNSET_HSDB_PRIMARY_ENV",
+        "api_key": "literal-api-key",
+    })
+
+    assert referenced._credential_values()[0] == "resolved-test-key"
+    assert missing_reference._credential_values()[0] == ""
+    assert literal._credential_values()[0] == "literal-api-key"
+
+
 def test_full_write_queue_records_failure_without_blocking(provider, fake_client):
     class FullQueue:
         unfinished_tasks = 0

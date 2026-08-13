@@ -271,6 +271,15 @@ def _looks_like_prompt_injection(text: str) -> bool:
     return any(pattern.search(sample) for pattern in _INJECTION_PATTERNS)
 
 
+def _resolve_env_reference(value: Any, expected_env_name: str) -> str:
+    """Resolve an exact configured environment-variable reference, or preserve a literal."""
+    raw = str(value or "").strip()
+    expected = str(expected_env_name or "").strip()
+    if raw and raw == expected:
+        return os.environ.get(expected, "")
+    return raw
+
+
 def _is_trivial_query(query: str) -> bool:
     normalized = re.sub(r"[^a-z0-9 ]+", "", query.lower()).strip()
     return normalized in _TRIVIAL_QUERIES or len(normalized) < 2
@@ -1030,9 +1039,9 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         api_key = os.environ.get(api_env_name, "")
         user_id = os.environ.get(user_env_name, "")
         if not api_key:
-            api_key = str(self._config.get("api_key") or "")
+            api_key = _resolve_env_reference(self._config.get("api_key"), api_env_name)
         if not user_id:
-            user_id = str(self._config.get("user_id") or "")
+            user_id = _resolve_env_reference(self._config.get("user_id"), user_env_name)
         env_file = str(self._config.get("env_file") or "").strip()
         if env_file and (not api_key or not user_id):
             try:
