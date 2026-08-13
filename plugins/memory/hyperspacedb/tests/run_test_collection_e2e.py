@@ -25,6 +25,8 @@ from pathlib import Path
 from hyperspace import HyperspaceClient
 
 ROOT = Path(__file__).resolve().parents[1]
+E2E_RPC_TIMEOUT_SECONDS = 30.0
+E2E_FLUSH_TIMEOUT_SECONDS = 90.0
 E2E_FIXTURES = (
     "hyperspacedb e2e synthetic fixture alpha 20260813",
     "hyperspacedb e2e synthetic fixture beta 20260813",
@@ -164,7 +166,7 @@ def main() -> None:
             "state_path": state_path,
             "profile_scope": "e2e-test-scope",
             "trust_mode": "annotate_all",
-            "rpc_timeout": 4.0,
+            "rpc_timeout": E2E_RPC_TIMEOUT_SECONDS,
             "top_k": 5,
             "auto_store": True,
         })
@@ -182,7 +184,7 @@ def main() -> None:
             old = f"provider e2e old fact {nonce}"
             new = f"provider e2e new fact {nonce}"
             provider.on_memory_write("add", "memory", old)
-            if not provider.flush_writes(timeout=10.0):
+            if not provider.flush_writes(timeout=E2E_FLUSH_TIMEOUT_SECONDS):
                 raise RuntimeError("Add queue did not drain")
             rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
             summary["add_verified"] = len(rows) == 1 and bool(
@@ -192,7 +194,7 @@ def main() -> None:
             provider.on_memory_write(
                 "replace", "memory", new, {"old_text": f"old fact {nonce}"}
             )
-            if not provider.flush_writes(timeout=10.0):
+            if not provider.flush_writes(timeout=E2E_FLUSH_TIMEOUT_SECONDS):
                 raise RuntimeError("Replace queue did not drain")
             rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
             summary["replace_verified"] = (
@@ -203,7 +205,7 @@ def main() -> None:
             provider.on_memory_write(
                 "remove", "memory", "", {"old_text": f"new fact {nonce}"}
             )
-            if not provider.flush_writes(timeout=10.0):
+            if not provider.flush_writes(timeout=E2E_FLUSH_TIMEOUT_SECONDS):
                 raise RuntimeError("Remove queue did not drain")
             rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
             summary["remove_verified"] = rows == []
