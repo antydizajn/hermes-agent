@@ -203,8 +203,8 @@ def test_e2e_runner_uses_self_seeded_target_only_and_never_reads_source_collecti
 
 def test_e2e_runner_uses_explicit_embedding_aware_deadlines(monkeypatch):
     runner = _load_e2e_runner(monkeypatch)
-    assert runner.E2E_RPC_TIMEOUT_SECONDS >= 30.0
-    assert runner.E2E_FLUSH_TIMEOUT_SECONDS >= 90.0
+    assert runner.E2E_RPC_TIMEOUT_SECONDS >= 60.0
+    assert runner.E2E_FLUSH_TIMEOUT_SECONDS >= 180.0
 
 
 def test_e2e_self_seed_is_idempotent_and_target_scoped(monkeypatch):

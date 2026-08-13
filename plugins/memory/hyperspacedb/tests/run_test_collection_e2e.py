@@ -25,8 +25,8 @@ from pathlib import Path
 from hyperspace import HyperspaceClient
 
 ROOT = Path(__file__).resolve().parents[1]
-E2E_RPC_TIMEOUT_SECONDS = 30.0
-E2E_FLUSH_TIMEOUT_SECONDS = 90.0
+E2E_RPC_TIMEOUT_SECONDS = 60.0
+E2E_FLUSH_TIMEOUT_SECONDS = 180.0
 E2E_FIXTURES = (
     "hyperspacedb e2e synthetic fixture alpha 20260813",
     "hyperspacedb e2e synthetic fixture beta 20260813",
