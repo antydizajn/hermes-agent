@@ -2109,8 +2109,12 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         if not isinstance(fetched, list):
             raise BackendMalformed("get_points returned a non-list response")
         by_id = {
-            point.get("id"): point for point in fetched
-            if isinstance(point, dict) and isinstance(point.get("id"), int)
+            point.get("id"): point
+            for point in fetched
+            if isinstance(point, dict)
+            and isinstance(point.get("id"), int)
+            and not isinstance(point.get("id"), bool)
+            and point.get("id") in point_ids
         }
         poincare_vectors: List[List[float]] = []
         for point_id in point_ids:
@@ -2123,8 +2127,11 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             lorentz = [float(value) for value in vector]
             if lorentz[0] <= 0.0:
                 raise BackendMalformed("Geometry point is not on the positive Lorentz sheet")
-            spatial_norm_sq = sum(value * value for value in lorentz[1:])
-            if not math.isclose(lorentz[0] * lorentz[0] - spatial_norm_sq, 1.0, rel_tol=1e-5, abs_tol=1e-5):
+            spatial_norm_sq = math.fsum(value * value for value in lorentz[1:])
+            time_sq = lorentz[0] * lorentz[0]
+            invariant_residual = abs(time_sq - spatial_norm_sq - 1.0)
+            invariant_scale = max(1.0, abs(time_sq), abs(spatial_norm_sq))
+            if invariant_residual > 1e-12 * invariant_scale:
                 raise BackendMalformed("Geometry point violates the Lorentz hyperboloid constraint")
             try:
                 from hyperspace.math import lorentz_to_poincare
@@ -2155,6 +2162,12 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             if not isinstance(handles, list):
                 raise InvalidArgument("handles must be a capability-handle list")
             if operation == "trust_score":
+                if not 3 <= len(handles) <= 16:
+                    raise InvalidArgument("trust_score requires 3 to 16 capability handles")
+                try:
+                    self._resolve_point_capabilities(handles, self._collection)
+                except ConfigurationError as error:
+                    raise InvalidArgument(str(error)) from error
                 raise DiagnosticUnavailable(
                     "trust_score is unavailable: the current upstream formula is degenerate"
                 )
@@ -2172,13 +2185,24 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             if operation == "predict_relation":
                 from hyperspace.math import log_map
                 relation = log_map(vectors[0], vectors[1])
-                result = {"dimension": len(relation), "l2_norm": self._geometry_norm(relation)}
+                if (
+                    not isinstance(relation, list)
+                    or len(relation) != 128
+                    or any(
+                        isinstance(value, bool)
+                        or not isinstance(value, (int, float))
+                        or not math.isfinite(float(value))
+                        for value in relation
+                    )
+                ):
+                    raise BackendMalformed("Relation diagnostic returned an invalid Poincare vector")
+                result = {"dimension": 128, "l2_norm": self._geometry_norm(relation)}
             elif operation == "predict_momentum":
                 from hyperspace.math import koopman_extrapolate
                 assert steps is not None
                 predicted = koopman_extrapolate(vectors[0], vectors[1], steps)
                 if not isinstance(predicted, list) or len(predicted) != 128 or any(
-                    not isinstance(value, (int, float)) or not math.isfinite(float(value))
+                    isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value))
                     for value in predicted
                 ):
                     raise BackendMalformed("Momentum diagnostic returned an invalid Poincare vector")
@@ -2222,10 +2246,11 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                 if not isinstance(fetched, list):
                     raise BackendMalformed("get_points returned a non-list response")
                 by_id = {
-                    int(point["id"]): point
+                    point["id"]: point
                     for point in fetched
                     if isinstance(point, dict)
                     and isinstance(point.get("id"), int)
+                    and not isinstance(point.get("id"), bool)
                     and point["id"] in point_ids
                 }
                 result = []

@@ -190,6 +190,52 @@ def test_e2e_runner_requires_explicit_approval_and_test_hmac_before_client_creat
     assert text.index('state_path = require_external_state_path') < text.index("client = HyperspaceClient")
 
 
+def test_e2e_runner_uses_self_seeded_target_only_and_never_reads_source_collection():
+    text = (ROOT / "tests" / "run_test_collection_e2e.py").read_text(encoding="utf-8")
+    assert "HSDB_TEST_SOURCE_COLLECTION" not in text
+    assert "fixture source" not in text.lower()
+    assert "def seed_target_fixtures" in text
+    assert 'collection=target' in text
+    assert "client.scroll(" not in text
+
+
+def test_e2e_self_seed_is_idempotent_and_target_scoped(monkeypatch):
+    runner = _load_e2e_runner(monkeypatch)
+
+    class TargetOnlyClient:
+        def __init__(self):
+            self.points = {}
+            self.calls = []
+
+        def get_points(self, ids, *, collection):
+            self.calls.append(("get_points", collection))
+            return [self.points[item] for item in ids if item in self.points]
+
+        def vectorize(self, text, *, metric):
+            self.calls.append(("vectorize", metric))
+            return [1.0] + [0.0] * 128
+
+        def insert(self, point_id, *, vector, document, payload, metadata, collection, durability):
+            self.calls.append(("insert", collection))
+            self.points[point_id] = {"id": point_id, "metadata": dict(metadata)}
+            return True
+
+    client = TargetOnlyClient()
+    target = "hsdb_e2e_unit_target"
+    query, first_count = runner.seed_target_fixtures(client, target)
+    _, second_count = runner.seed_target_fixtures(client, target)
+
+    assert query == runner.E2E_FIXTURES[0]
+    assert first_count == len(runner.E2E_FIXTURES)
+    assert second_count == len(runner.E2E_FIXTURES)
+    collection_calls = [
+        collection for operation, collection in client.calls
+        if operation in {"get_points", "insert"}
+    ]
+    assert collection_calls
+    assert all(collection == target for collection in collection_calls)
+
+
 def _load_e2e_runner(monkeypatch):
     fake_hyperspace = types.ModuleType("hyperspace")
     fake_hyperspace.HyperspaceClient = object

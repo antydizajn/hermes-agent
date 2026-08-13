@@ -11,9 +11,9 @@ def _lorentz_point(ball_coordinate):
     ] + [0.0] * 127
 
 
-def _issued_handles(provider, fake_client, coordinates):
+def _issued_handles(provider, fake_client, coordinates, *, start_id=41):
     handles = []
-    for offset, coordinate in enumerate(coordinates, start=41):
+    for offset, coordinate in enumerate(coordinates, start=start_id):
         fake_client.points[offset] = {
             "id": offset,
             "vector": _lorentz_point(coordinate),
@@ -44,6 +44,13 @@ def test_geometry_schema_and_capability_only_diagnostics(provider, fake_client, 
     assert unavailable["ok"] is False
     assert unavailable["error"]["code"] == "DIAGNOSTIC_UNAVAILABLE"
     assert fake_client.calls == unavailable_before
+
+    forged = _geometry(provider, operation="trust_score", handles=["forged", *handles[1:]])
+    missing = _geometry(provider, operation="trust_score", handles=[])
+    assert forged["error"]["code"] == "CAPABILITY_FORBIDDEN"
+    assert missing["error"]["code"] == "INVALID_ARGUMENT"
+    assert fake_client.calls == unavailable_before
+
     assert relation["result"]["dimension"] == 128
     assert math.isfinite(relation["result"]["l2_norm"])
     assert momentum["result"]["dimension"] == 128
@@ -81,6 +88,39 @@ def test_geometry_fails_closed_on_missing_or_malformed_lorentz_points(provider, 
     malformed = _geometry(provider, operation="predict_relation", handles=handles)
     assert malformed["ok"] is False
     assert malformed["error"]["code"] == "MALFORMED_RESULT"
+
+
+def test_geometry_rejects_boolean_backend_ids_and_boolean_math_outputs(provider, fake_client, monkeypatch):
+    handles = _issued_handles(provider, fake_client, [0.05, 0.10])
+    fake_client.points[41]["id"] = True
+    boolean_id = _geometry(provider, operation="predict_relation", handles=handles)
+    assert boolean_id["ok"] is False
+    assert boolean_id["error"]["code"] == "MALFORMED_RESULT"
+
+    fake_client.points[41]["id"] = 41
+    import hyperspace.math as math_module
+
+    monkeypatch.setattr(math_module, "log_map", lambda *_args: [0.0] * 129)
+    wrong_dimension = _geometry(provider, operation="predict_relation", handles=handles)
+    assert wrong_dimension["ok"] is False
+    assert wrong_dimension["error"]["code"] == "MALFORMED_RESULT"
+
+    monkeypatch.setattr(math_module, "log_map", lambda *_args: [float("nan")] * 128)
+    nonfinite_relation = _geometry(provider, operation="predict_relation", handles=handles)
+    assert nonfinite_relation["ok"] is False
+    assert nonfinite_relation["error"]["code"] == "MALFORMED_RESULT"
+
+    monkeypatch.setattr(math_module, "koopman_extrapolate", lambda *_args: [False] * 128)
+    boolean_momentum = _geometry(provider, operation="predict_momentum", handles=handles)
+    assert boolean_momentum["ok"] is False
+    assert boolean_momentum["error"]["code"] == "MALFORMED_RESULT"
+
+
+def test_geometry_accepts_valid_near_boundary_lorentz_point(provider, fake_client):
+    handles = _issued_handles(provider, fake_client, [0.999999, 0.999998], start_id=141)
+    response = _geometry(provider, operation="predict_relation", handles=handles)
+    assert response["ok"] is True
+    assert response["result"]["dimension"] == 128
 
 
 def test_geometry_propagates_swallowed_sdk_error(provider, fake_client, plugin):

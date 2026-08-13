@@ -64,6 +64,24 @@ def test_graph_points_rejects_forged_or_duplicate_handles_before_rpc(provider, f
     assert fake_client.calls == before
 
 
+def test_graph_points_rejects_boolean_backend_id_alias(provider, fake_client):
+    fake_client.points[1] = {
+        "id": 1,
+        "payload": b"boolean id must not alias a point slot",
+        "metadata": {"source": "local-test", "trust": "unknown", "target": "memory"},
+        "distance": 0.0,
+    }
+    handle = _search_handle(provider, fake_client, 1)
+    fake_client.points[1]["id"] = True
+
+    response = json.loads(provider.handle_tool_call("hyperspace_graph", {
+        "operation": "points", "handles": [handle],
+    }))
+
+    assert response["ok"] is True
+    assert response["result"] == [{"handle": handle, "status": "MISSING"}]
+
+
 def test_graph_node_uses_handle_and_never_returns_a_backend_slot(provider, fake_client, monkeypatch):
     handle = _search_handle(provider, fake_client, 7)
     observed = []

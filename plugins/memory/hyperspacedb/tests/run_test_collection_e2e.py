@@ -4,12 +4,12 @@ Required environment:
 - HSDB_E2E_WRITE_APPROVED: literal `approved` acknowledgment for this dedicated target
 - HSDB_TEST_OWNERSHIP_HMAC_KEY: non-production ownership HMAC key
 - HSDB_E2E_STATE_PATH: explicit temporary local ledger location outside this plugin directory
-- HSDB_TEST_SOURCE_COLLECTION: existing read-only fixture source
 - HSDB_TEST_COLLECTION: dedicated target collection prefixed `hsdb_e2e_`
 
-The script never deletes a collection. It copies a bounded fixture sample, then
-verifies provider add/replace/remove using synthetic records in the target only.
-No fixture content is printed.
+The script never deletes a collection and never reads another collection. It
+seeds bounded synthetic fixtures, searches, and verifies provider
+add/replace/remove only inside the dedicated target. No fixture content or
+secret is printed.
 """
 
 from __future__ import annotations
@@ -25,6 +25,10 @@ from pathlib import Path
 from hyperspace import HyperspaceClient
 
 ROOT = Path(__file__).resolve().parents[1]
+E2E_FIXTURES = (
+    "hyperspacedb e2e synthetic fixture alpha 20260813",
+    "hyperspacedb e2e synthetic fixture beta 20260813",
+)
 
 
 def require_external_state_path(value: str) -> str:
@@ -53,27 +57,12 @@ def load_provider_module():
     return module
 
 
-def content_of(raw):
-    value = raw.get("payload")
-    if isinstance(value, bytes):
-        text = value.decode("utf-8", "replace")
-        if text:
-            return text
-    if isinstance(value, str) and value:
-        return value
-    meta = raw.get("metadata") or {}
-    for key in ("_content", "content", "text", "document", "body"):
-        if meta.get(key):
-            return str(meta[key])
-    return ""
-
-
-def candidate_id(material, probe):
+def candidate_id(material: str, probe: int) -> int:
     digest = hashlib.sha256(f"{material}:{probe}".encode("utf-8", "replace")).digest()
     return int.from_bytes(digest[:4], "big") or 1
 
 
-def close_client(client):
+def close_client(client) -> None:
     seen = set()
     for channel in list(getattr(client, "channels", []) or []) + [getattr(client, "channel", None)]:
         if channel is None or id(channel) in seen:
@@ -82,7 +71,51 @@ def close_client(client):
         channel.close()
 
 
-def main():
+def seed_target_fixtures(client, target: str) -> tuple[str, int]:
+    """Idempotently seed synthetic test records into target only."""
+    seeded = 0
+    for text in E2E_FIXTURES:
+        digest = hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()
+        record_id = None
+        for probe in range(64):
+            proposed = candidate_id(f"fixture:{text}", probe)
+            existing = client.get_points([proposed], collection=target)
+            if not existing:
+                record_id = proposed
+                break
+            metadata = existing[0].get("metadata") or {}
+            if metadata.get("fixture_digest") == digest:
+                record_id = proposed
+                break
+        if record_id is None:
+            raise RuntimeError("Synthetic fixture uint32 allocation exhausted")
+        existing = client.get_points([record_id], collection=target)
+        if existing:
+            seeded += 1
+            continue
+        vector = client.vectorize(text, metric="lorentz")
+        ok = client.insert(
+            record_id,
+            vector=vector,
+            document=text,
+            payload=text.encode("utf-8", "replace"),
+            metadata={
+                "source": "operator-authorized-test-fixture",
+                "trust": "test-fixture",
+                "fixture_digest": digest,
+            },
+            collection=target,
+            durability=3,
+        )
+        if ok is not True:
+            raise RuntimeError("Synthetic fixture insert did not return True")
+        seeded += 1
+    if seeded != len(E2E_FIXTURES):
+        raise RuntimeError("Synthetic fixture seed count mismatch")
+    return E2E_FIXTURES[0], seeded
+
+
+def main() -> None:
     approval = os.environ.get("HSDB_E2E_WRITE_APPROVED", "").strip().lower()
     if approval != "approved":
         raise SystemExit("Set HSDB_E2E_WRITE_APPROVED=approved before any isolated test write")
@@ -90,20 +123,19 @@ def main():
     if not ownership_key:
         raise SystemExit("HSDB_TEST_OWNERSHIP_HMAC_KEY is required for authenticated E2E writes")
     state_path = require_external_state_path(os.environ.get("HSDB_E2E_STATE_PATH", ""))
-    source = os.environ.get("HSDB_TEST_SOURCE_COLLECTION", "").strip()
     target = os.environ.get("HSDB_TEST_COLLECTION", "").strip()
-    if not source or not target or source == target:
-        raise SystemExit("Distinct HSDB_TEST_SOURCE_COLLECTION and HSDB_TEST_COLLECTION are required")
+    if not target:
+        raise SystemExit("HSDB_TEST_COLLECTION is required")
     if not target.startswith("hsdb_e2e_"):
         raise SystemExit("HSDB_TEST_COLLECTION must use the hsdb_e2e_ prefix")
+
     host = os.environ.get("HYPERSPACE_HOST", "127.0.0.1:50051")
     key = os.environ.get("HYPERSPACE_API_KEY") or None
     user_id = os.environ.get("HYPERSPACE_USER_ID") or None
     client = HyperspaceClient(host=host, api_key=key, user_id=user_id, pool_size=2)
     summary = {
-        "source_exists": False,
         "target_created": False,
-        "fixtures_copied": 0,
+        "fixtures_seeded": 0,
         "payload_search_verified": False,
         "add_verified": False,
         "replace_verified": False,
@@ -112,65 +144,20 @@ def main():
     try:
         collections = client.list_collections()
         names = {str(item.get("name")) for item in collections if isinstance(item, dict)}
-        summary["source_exists"] = source in names
-        if source not in names:
-            raise RuntimeError("Source fixture collection does not exist")
         if target not in names:
             ok = client.create_collection(target, dimension=129, metric="lorentz")
             if ok is not True:
                 raise RuntimeError("Test collection creation did not return True")
             summary["target_created"] = True
 
-        fixture_rows = client.scroll(limit=24, offset=0, collection=source)
-        first_query = ""
-        for raw in fixture_rows:
-            if not isinstance(raw, dict):
-                continue
-            text = content_of(raw).strip()
-            if not text:
-                continue
-            if not first_query:
-                first_query = text[: min(180, len(text))]
-            material = f"fixture:{raw.get('id')}:{text}"
-            record_id = None
-            for probe in range(64):
-                proposed = candidate_id(material, probe)
-                existing = client.get_points([proposed], collection=target)
-                if not existing:
-                    record_id = proposed
-                    break
-                meta = existing[0].get("metadata") or {}
-                if meta.get("fixture_digest") == hashlib.sha256(material.encode()).hexdigest():
-                    record_id = proposed
-                    break
-            if record_id is None:
-                raise RuntimeError("Fixture uint32 allocation exhausted")
-            vector = client.vectorize(text, metric="lorentz")
-            ok = client.insert(
-                record_id,
-                vector=vector,
-                document=text,
-                payload=text.encode("utf-8", "replace"),
-                metadata={
-                    "source": "operator-authorized-test-fixture",
-                    "trust": "test-fixture",
-                    "fixture_digest": hashlib.sha256(material.encode()).hexdigest(),
-                },
-                collection=target,
-                durability=3,
-            )
-            if ok is not True:
-                raise RuntimeError("Fixture insert did not return True")
-            summary["fixtures_copied"] += 1
-
-        if not first_query or summary["fixtures_copied"] == 0:
-            raise RuntimeError("No textual fixture could be copied")
+        first_query, summary["fixtures_seeded"] = seed_target_fixtures(client, target)
 
         module = load_provider_module()
         provider = module.HyperspaceDBMemoryProvider({
             "host": host,
             "collection": target,
             "metric": "lorentz",
+            "expected_dimension": 129,
             "api_key_env": "HYPERSPACE_API_KEY",
             "user_id_env": "HYPERSPACE_USER_ID",
             "ownership_hmac_key_env": "HSDB_TEST_OWNERSHIP_HMAC_KEY",
@@ -197,7 +184,7 @@ def main():
             provider.on_memory_write("add", "memory", old)
             if not provider.flush_writes(timeout=10.0):
                 raise RuntimeError("Add queue did not drain")
-            rows = [r for r in provider._ledger.active_records("memory") if nonce in r["content"]]
+            rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
             summary["add_verified"] = len(rows) == 1 and bool(
                 client.get_points([rows[0]["external_id"]], collection=target)
             )
@@ -207,7 +194,7 @@ def main():
             )
             if not provider.flush_writes(timeout=10.0):
                 raise RuntimeError("Replace queue did not drain")
-            rows = [r for r in provider._ledger.active_records("memory") if nonce in r["content"]]
+            rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
             summary["replace_verified"] = (
                 len(rows) == 1 and rows[0]["content"] == new
                 and bool(client.get_points([rows[0]["external_id"]], collection=target))
@@ -218,14 +205,13 @@ def main():
             )
             if not provider.flush_writes(timeout=10.0):
                 raise RuntimeError("Remove queue did not drain")
-            rows = [r for r in provider._ledger.active_records("memory") if nonce in r["content"]]
+            rows = [record for record in provider._ledger.active_records("memory") if nonce in record["content"]]
             summary["remove_verified"] = rows == []
         finally:
             provider.shutdown()
 
         required = [
-            "source_exists", "payload_search_verified", "add_verified",
-            "replace_verified", "remove_verified",
+            "payload_search_verified", "add_verified", "replace_verified", "remove_verified",
         ]
         if not all(summary[key] for key in required):
             raise RuntimeError(f"E2E verification failed: {summary}")
