@@ -57,6 +57,7 @@ _TOOL_ALLOWED_ARGS = {
     "hyperspace_clusters": {"max_clusters", "min_cluster_size", "max_nodes", "collection"},
     "hyperspace_search_advanced": {"query", "mode", "top_k", "collection"},
     "hyperspace_admin": {"operation", "collection"},
+    "hyperspace_geometry": {"operation", "handles", "steps"},
 }
 
 _ADMIN_STATS_FIELDS = (
@@ -126,6 +127,14 @@ class CollectionForbidden(ProviderError):
 
 class CapabilityForbidden(ProviderError):
     code = "CAPABILITY_FORBIDDEN"
+
+
+class InvalidArgument(ProviderError):
+    code = "INVALID_ARGUMENT"
+
+
+class DiagnosticUnavailable(ProviderError):
+    code = "DIAGNOSTIC_UNAVAILABLE"
 
 
 class CollisionExhausted(ProviderError):
@@ -865,6 +874,26 @@ HSDB_ADMIN_SCHEMA = {
 }
 
 
+HSDB_GEOMETRY_SCHEMA = {
+    "name": "hyperspace_geometry",
+    "description": (
+        "Run bounded geometric diagnostics on capability-scoped Lorentz 129D points. "
+        "predict_relation and predict_momentum return scalar summaries only; "
+        "trust_score is explicitly unavailable until the upstream formula is non-degenerate. "
+        "This never establishes factual truth or safety."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "operation": {"type": "string", "enum": ["predict_relation", "predict_momentum", "trust_score"]},
+            "handles": {"type": "array", "items": {"type": "string"}, "maxItems": 16},
+            "steps": {"type": "number"},
+        },
+        "required": ["operation", "handles"],
+    },
+}
+
+
 class HyperspaceDBMemoryProvider(MemoryProvider):
     """Fail-closed Hermes MemoryProvider backed by HyperspaceDB."""
 
@@ -926,6 +955,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         self._metric = str(self._config.get("metric") or "lorentz").strip().lower()
         self._configured_metric = self._metric
         self._expected_dimension = _bounded_int(self._config.get("expected_dimension"), 0, 0, 65_536)
+        self._observed_dimension: Optional[int] = None
         self._collection_contract_verified = False
         max_distance = self._config.get("max_distance")
         self._max_distance = float(max_distance) if max_distance not in (None, "") else None
@@ -1126,7 +1156,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         details = stats if isinstance(stats, dict) else {}
         observed_metric = str(details.get("metric") or "").strip().lower()
         observed_dimension = details.get("dimension", details.get("dimensions"))
-        if not observed_metric or (self._expected_dimension and observed_dimension in (None, "")):
+        if not observed_metric or observed_dimension in (None, ""):
             collections = self._call("list_collections")
             if isinstance(collections, list):
                 for item in collections:
@@ -1138,12 +1168,17 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             raise BackendMalformed("Collection metric could not be verified")
         if observed_metric != self._configured_metric:
             raise ConfigurationError("Configured metric does not match the collection metric")
-        if self._expected_dimension:
+        if observed_dimension not in (None, ""):
             try:
-                dimension = int(observed_dimension)
+                self._observed_dimension = int(observed_dimension)
             except (TypeError, ValueError):
+                self._observed_dimension = None
+        else:
+            self._observed_dimension = None
+        if self._expected_dimension:
+            if self._observed_dimension is None:
                 raise BackendMalformed("Collection dimension could not be verified")
-            if dimension != self._expected_dimension:
+            if self._observed_dimension != self._expected_dimension:
                 raise ConfigurationError("Configured dimension does not match the collection dimension")
 
     def _require_collection_contract(self) -> None:
@@ -1983,6 +2018,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             HSDB_CLUSTERS_SCHEMA,
             HSDB_SEARCH_ADVANCED_SCHEMA,
             HSDB_ADMIN_SCHEMA,
+            HSDB_GEOMETRY_SCHEMA,
         ]
 
     def _resolve_collection(self, args: Dict[str, Any]) -> str:
@@ -2058,6 +2094,115 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         if self._ledger is None:
             return _json_error("AUDIT_UNAVAILABLE", "Provider is not initialized")
         return self._tool_json({"ok": True, "result": self._ledger.audit_summary(self._profile_scope)})
+
+    def _require_geometry_contract(self) -> None:
+        self._require_collection_contract()
+        if self._configured_metric != "lorentz" or self._observed_dimension != 129:
+            raise ConfigurationError("Geometry diagnostics require a verified Lorentz 129D collection")
+
+    def _geometry_points(self, handles: Any) -> List[List[float]]:
+        try:
+            point_ids = self._resolve_point_capabilities(handles, self._collection)
+        except ConfigurationError as error:
+            raise InvalidArgument(str(error)) from error
+        fetched = self._call("get_points", point_ids, collection=self._collection)
+        if not isinstance(fetched, list):
+            raise BackendMalformed("get_points returned a non-list response")
+        by_id = {
+            point.get("id"): point for point in fetched
+            if isinstance(point, dict) and isinstance(point.get("id"), int)
+        }
+        poincare_vectors: List[List[float]] = []
+        for point_id in point_ids:
+            point = by_id.get(point_id)
+            vector = point.get("vector") if isinstance(point, dict) else None
+            if not isinstance(vector, (list, tuple)) or len(vector) != 129:
+                raise BackendMalformed("Geometry point is missing a Lorentz 129D vector")
+            if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) for value in vector):
+                raise BackendMalformed("Geometry point contains a non-finite vector value")
+            lorentz = [float(value) for value in vector]
+            if lorentz[0] <= 0.0:
+                raise BackendMalformed("Geometry point is not on the positive Lorentz sheet")
+            spatial_norm_sq = sum(value * value for value in lorentz[1:])
+            if not math.isclose(lorentz[0] * lorentz[0] - spatial_norm_sq, 1.0, rel_tol=1e-5, abs_tol=1e-5):
+                raise BackendMalformed("Geometry point violates the Lorentz hyperboloid constraint")
+            try:
+                from hyperspace.math import lorentz_to_poincare
+                poincare = lorentz_to_poincare(lorentz)
+            except Exception as error:
+                raise BackendMalformed("Lorentz-to-Poincare conversion failed") from error
+            if not isinstance(poincare, list) or len(poincare) != 128:
+                raise BackendMalformed("Lorentz-to-Poincare conversion returned an invalid dimension")
+            if any(not isinstance(value, (int, float)) or not math.isfinite(float(value)) for value in poincare):
+                raise BackendMalformed("Lorentz-to-Poincare conversion returned non-finite values")
+            radius_sq = sum(float(value) * float(value) for value in poincare)
+            if not math.isfinite(radius_sq) or radius_sq >= 1.0:
+                raise BackendMalformed("Lorentz-to-Poincare conversion left the unit ball")
+            poincare_vectors.append([float(value) for value in poincare])
+        return poincare_vectors
+
+    @staticmethod
+    def _geometry_norm(vector: Sequence[float]) -> float:
+        return math.sqrt(sum(value * value for value in vector))
+
+    def _tool_geometry(self, args: Dict[str, Any]) -> str:
+        try:
+            self._require_geometry_contract()
+            operation = str(args.get("operation") or "")
+            if operation not in {"predict_relation", "predict_momentum", "trust_score"}:
+                raise InvalidArgument("operation must be predict_relation, predict_momentum, or trust_score")
+            handles = args.get("handles")
+            if not isinstance(handles, list):
+                raise InvalidArgument("handles must be a capability-handle list")
+            if operation == "trust_score":
+                raise DiagnosticUnavailable(
+                    "trust_score is unavailable: the current upstream formula is degenerate"
+                )
+            if len(handles) != 2:
+                raise InvalidArgument(f"{operation} requires exactly 2 capability handles")
+            steps: Optional[float] = None
+            if operation == "predict_momentum":
+                steps_value = args.get("steps", 1.0)
+                if isinstance(steps_value, bool) or not isinstance(steps_value, (int, float)):
+                    raise InvalidArgument("steps must be a finite number")
+                steps = float(steps_value)
+                if not math.isfinite(steps) or not 0.0 < steps <= 4.0:
+                    raise InvalidArgument("steps must be finite and in (0, 4]")
+            vectors = self._geometry_points(handles)
+            if operation == "predict_relation":
+                from hyperspace.math import log_map
+                relation = log_map(vectors[0], vectors[1])
+                result = {"dimension": len(relation), "l2_norm": self._geometry_norm(relation)}
+            elif operation == "predict_momentum":
+                from hyperspace.math import koopman_extrapolate
+                assert steps is not None
+                predicted = koopman_extrapolate(vectors[0], vectors[1], steps)
+                if not isinstance(predicted, list) or len(predicted) != 128 or any(
+                    not isinstance(value, (int, float)) or not math.isfinite(float(value))
+                    for value in predicted
+                ):
+                    raise BackendMalformed("Momentum diagnostic returned an invalid Poincare vector")
+                radius = self._geometry_norm(predicted)
+                if radius >= 1.0:
+                    raise BackendMalformed("Momentum diagnostic left the Poincare unit ball")
+                result = {"dimension": len(predicted), "l2_norm": radius}
+            else:
+                raise DiagnosticUnavailable(
+                    "trust_score is unavailable: the current upstream formula is degenerate"
+                )
+            return self._tool_json({
+                "ok": True,
+                "diagnostic_kind": "geometry",
+                "metric": "lorentz",
+                "input_dimension": 129,
+                "output_representation": "scalar_summary_from_poincare_ball_128",
+                "interpretation": "This geometric diagnostic does not establish factual truth or safety.",
+                "result": result,
+            })
+        except ProviderError as error:
+            return _json_error(error.code, str(error))
+        except Exception:
+            return _json_error("MALFORMED_RESULT", "Geometry diagnostic failed")
 
     def _tool_graph(self, args: Dict[str, Any]) -> str:
         try:
@@ -2262,6 +2407,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             "hyperspace_clusters": self._tool_clusters,
             "hyperspace_search_advanced": self._tool_search_advanced,
             "hyperspace_admin": self._tool_admin,
+            "hyperspace_geometry": self._tool_geometry,
         }
         handler = handlers.get(tool_name)
         if handler is None:

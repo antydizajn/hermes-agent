@@ -17,14 +17,22 @@ def test_current_on_memory_write_signature(plugin):
     assert list(sig.parameters)[:5] == ["self", "action", "target", "content", "metadata"]
 
 
-def test_all_nine_tool_names_are_unique(provider):
+def test_all_ten_tool_names_are_unique(provider):
     names = [s["name"] for s in provider.get_tool_schemas()]
     assert names == [
         "hyperspace_search", "hyperspace_store", "hyperspace_status", "hyperspace_audit",
         "hyperspace_graph", "hyperspace_hierarchy", "hyperspace_clusters",
-        "hyperspace_search_advanced", "hyperspace_admin",
+        "hyperspace_search_advanced", "hyperspace_admin", "hyperspace_geometry",
     ]
     assert len(names) == len(set(names))
+
+
+def test_tool_schema_context_budget_stays_bounded(provider):
+    schemas = provider.get_tool_schemas()
+    serialized = json.dumps(schemas, sort_keys=True, separators=(",", ":"))
+    assert len(schemas) <= 10
+    assert len(serialized) <= 4096
+    assert max(len(json.dumps(schema, sort_keys=True, separators=(",", ":"))) for schema in schemas) <= 768
 
 
 def test_sync_turn_is_explicit_noop(provider, fake_client):

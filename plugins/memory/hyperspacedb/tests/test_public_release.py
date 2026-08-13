@@ -147,12 +147,19 @@ def test_readme_documents_hmac_environment_boundary():
     assert "do not put the key in a public configuration file" in text
 
 
-def test_readme_matches_current_nine_tool_and_capability_contract():
+def test_readme_matches_current_ten_tool_and_capability_contract():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "exactly nine bounded tools" in text
+    assert "exactly ten bounded tools" in text
     assert "hyperspace_audit" in text
+    assert "hyperspace_geometry" in text
+    for operation in ("predict_relation", "predict_momentum", "trust_score"):
+        assert f"`{operation}`" in text
+    assert "DIAGNOSTIC_UNAVAILABLE" in text
+    assert "constant 0.5" in text
     assert "capability handle" in text
     assert "raw backend point IDs" in text
+    assert "geometric diagnostics, not evidence that a memory is" in text
+    assert "factually true or safe" in text
 
 
 def test_readme_documents_read_only_admin_allowlist():

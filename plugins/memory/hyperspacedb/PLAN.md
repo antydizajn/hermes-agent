@@ -1038,22 +1038,32 @@ Do not add to model-facing admin:
 Server output must be allowlisted field-by-field. Do not pass raw server maps to
 the model.
 
-### OPTIONAL-D: add one multiplexed `hyperspace_geometry` tool
+### OPTIONAL-D: `hyperspace_geometry` (local commit pending)
 
-Allowed read-only operations:
+STATUS: INTEGRATION_TESTED, COMMIT_GATE PENDING. The tool accepts only opaque
+short-lived capability handles; it never accepts raw IDs or returns raw vectors.
 
-- `trust_score` for a bounded ordered trajectory ID list;
-- `predict_relation` for exactly two IDs;
-- `predict_momentum` for a bounded trajectory and bounded numeric step value.
+Active operations:
 
-Requirements:
+- `predict_relation` for exactly two handles;
+- `predict_momentum` for exactly two handles and a bounded finite step value.
 
-- Lorentz 129D collection verification remains mandatory;
-- hard ID/count/depth/numeric limits;
-- distinguish mathematical server output from factual/epistemic truth;
-- label outputs as geometric diagnostics, never as proof that a memory is true;
-- test malformed vectors, missing IDs, empty trajectories, non-finite values,
-  timeout, and swallowed SDK errors.
+`trust_score` remains named in the schema but returns `DIAGNOSTIC_UNAVAILABLE`
+before any point lookup. Source-equivalent numeric probes showed the current
+upstream last-point-attractor formula returns constant `0.5` on distinct valid
+trajectories. A constant value is not a trust score; do not claim otherwise.
+
+Requirements met locally:
+
+- verified Lorentz 129D collection state;
+- capability-only point resolution and strict output redaction;
+- explicit Lorentz-to-Poincare conversion before active SDK math helpers;
+- hard count/numeric limits and malformed/missing/non-finite vector rejection;
+- timeout/swallowed-RPC and helper-exception fail-closed tests;
+- output labels state that diagnostics never establish factual truth or safety.
+
+This earns fake-client integration evidence only. It does not upgrade the base
+E2E verdict.
 
 ### OPTIONAL-E: event observation - defer unless there is a real use case
 
@@ -1108,13 +1118,14 @@ No batch operation may bypass the single-record invariants proven in the base.
 
 A1. [x] Freeze the verified base test result and record its evidence hash.
 A2. [x] Implement and test `hyperspace_audit`.
-A3. [ ] Add bounded `points` to `hyperspace_graph`.
-A4. [ ] Add read-only `count`, `digest`, and `cache_stats` to admin.
-A5. [ ] Add multiplexed read-only geometry only if required by users.
-A6. [ ] Re-run the complete base suite after every optional capability.
-A7. [ ] Re-run schema count/context-size and public-release scans.
-A8. [ ] Treat events, reconciliation control, and batch mutation as independent
-    future milestones, each requiring its own threat model and E2E gate.
+A3. [x] Replace raw graph slots with bounded capability-scoped `points`.
+A4. [x] Add read-only `count`, `digest`, and `cache_stats` to admin.
+A5. [x] Add multiplexed read-only geometry; active relation/momentum only, trust score fail-closed.
+A6. [x] Re-run the complete base suite after every optional capability (A5: 116 passed, E2E ignored).
+A7. [>] Re-run schema count/context-size and public-release scans before A5 commit.
+A8. [!] Treat events, reconciliation control, and batch mutation as independent
+    future milestones, each requiring its own threat model and E2E gate; blocked
+    by design in this local-only run.
 
 Optional work cannot retroactively upgrade a base verification level. Report it
 separately, for example:
@@ -1186,34 +1197,34 @@ full local PTY suite pass. This earns UNIT/INTEGRATION evidence only, never E2E.
 
 ### CURRENT EXECUTION STATE
 
-- Current phase: `OPTIONAL-C READ-ONLY ADMIN ALLOWLIST`
-- Active step: `A4 [>]`
-- Base progress: `40/43 historical tracked steps completed; strict E2E gates 26, 28, and 43 remain blocked`
-- Optional progress: `A1 [x] baseline; A2 [x] committed ca7a62de3; A3 [x] committed 87d3eec2a; A4 [>] commit gate passed source/test audit`
-- Last PLAN.md update UTC: `2026-08-13T11:24:00+02:00`
-- Last verified test level: `A4 complete fake-client suite GREEN: 110 passed in 14.36s with E2E runner explicitly ignored; admin AST allowlist, diff whitespace, forbidden-call scan, and staged scope pass`
-- Current blocker: `No implementation, audit, or staging blocker. Six reviewed A4 files are staged under the plugin only; base E2E gates 26, 28, and 43 stay blocked.`
-- Immediate next action: `Create one local A4 commit without bypass flags; verify commit manifest and post-commit scope before starting OPTIONAL-D.`
+- Current phase: `A5 LOCAL COMMIT THEN AUTHORIZED E2E`
+- Active step: `A5 [>]`
+- Base progress: `40/43 historical tracked steps completed; user explicitly authorized isolated E2E for the dedicated target only`
+- Optional progress: `A1-A7 [x]; A5 final suite, A6 rerun, and A7 release/schema gates are complete; A8 remains separately threat-model-gated`
+- Last PLAN.md update UTC: `2026-08-13T12:51:18+02:00`
+- Last verified test level: `Final local plugin no-E2E suite GREEN: 117 passed in 20.67s; A7 public scan 0 findings; 10 unique schemas, 3447 serialized chars total, largest schema 587 chars; py_compile and scoped whitespace passed`
+- Current blocker: `No local source blocker. trust_score remains DIAGNOSTIC_UNAVAILABLE because a source-equivalent numeric probe proved the current upstream attractor formula returns constant 0.5 on distinct valid trajectories. The authorized E2E is blocked only on sourcing a valid non-production HMAC, explicit external state path, source fixture collection, and dedicated hsdb_e2e_ target; no source collection mutation is allowed.`
+- Immediate next action: `Commit the seven reviewed plugin paths, then run the guarded E2E from a fresh process with explicit isolated environment.`
 
 When work begins, replace these values immediately. Never leave `Active step:
 NONE` while any row is `[>]`.
 
 ### ACTIVE STEP DETAIL
 
-- Step ID: `A4 [>]`
-- Goal: `Add only bounded read-only `count`, `digest`, and `cache_stats` operations to hyperspace_admin through field allowlists.`
-- Why now / dependency satisfied: `A3 capability migration is locally committed and verified; source inventory confirms current SDK exposes these read-only calls.`
-- Progress status: `RED_READY`
-- Verification level: `STATIC_CHECKED`
-- Started UTC: `2026-08-13T11:04:13+02:00`
-- Last updated UTC: `2026-08-13T11:04:13+02:00`
-- Files/scope: `PLUGIN_ROOT/__init__.py, tests/test_optional_admin.py, tests/conftest.py if fake read-only methods are required, README.md, PLAN.md only; no core, SDK, server, config, secrets, collection, standalone/public repository, remote, or E2E action.`
-- Intended acceptance test: `Fake-client RED/GREEN proves operations are read-only, output is allowlisted, malformed/unexpected maps fail closed, and no destructive admin operation is registered; full suite excludes E2E.`
-- Latest command/observation: `Read-only SDK inventory found count(), get_digest(), and get_cache_stats(); cache stats use a GET endpoint but raw shape is untrusted.`
+- Step ID: `A5 [>]`
+- Goal: `Add one bounded read-only geometry diagnostic tool using capability handles, explicit Lorentz-to-Poincare conversion, and non-epistemic output labels.`
+- Why now / dependency satisfied: `A4 is locally committed and full PLAN execution is authorized; A3 established the capability-only model boundary.`
+- Progress status: `COMMIT_GATE`
+- Verification level: `INTEGRATION_TESTED`
+- Started UTC: `2026-08-13T11:29:56+02:00`
+- Last updated UTC: `2026-08-13T12:45:10+02:00`
+- Files/scope: `PLUGIN_ROOT/__init__.py, plugin.yaml, README.md, tests/test_optional_geometry.py, tests/test_hermes_contract.py, tests/test_public_release.py, PLAN.md only; no core, SDK, server, config, secrets, collection, standalone/public repository, remote, or E2E action.`
+- Intended acceptance test: `Fake-client RED/GREEN proves live capability-only inputs, exact Lorentz 129 finite vector validation, explicit conversion, bounded finite relation/momentum summaries, trust-score fail-closed handling, diagnostic labels, and no raw-ID/mutation path.`
+- Latest command/observation: `Final no-E2E suite exit 0: 117 passed in 16.70s. A7 targeted schema/release/security suite: 43 passed in 16.15s; public scan 0 findings; 10/10 unique schemas; 3447 serialized chars total; max schema 587 chars.`
 - Exit code: `0`
-- Evidence/result: `No source changed for A4 yet. No actual SDK/server call was made.`
-- Blocker: `Need test-defined allowlist before adding model-facing admin operations.`
-- Next action: `Write A4 contract tests, run expected RED, then minimal local handler/schema/fake-client changes.`
+- Evidence/result: `No actual SDK/server call, collection access, credentials, mutation, or E2E runner. trust_score is deliberately DIAGNOSTIC_UNAVAILABLE before point RPC because the source-equivalent upstream formula returned constant 0.5 on three distinct valid trajectories.`
+- Blocker: `Staged scope review and local commit only. A8 remains a separate blocked milestone requiring a threat model plus authorized E2E.`
+- Next action: `Stage only seven reviewed A5 plugin paths; inspect staged manifest/whitespace/diff, then commit.`
 
 Replace this block whenever the active step changes. Do not append secrets,
 fixture content, private collection names, or private absolute paths.
@@ -1275,11 +1286,11 @@ fixture content, private collection names, or private absolute paths.
 | A1 | [x] | DONE | STATIC_CHECKED | 2026-08-13T09:18:31+02:00 | 2026-08-13T09:18:31+02:00 | 2026-08-13T09:18:31+02:00 | PLAN.md; local commit baseline | Optional baseline frozen at `1f2fcd519` before A2 | 0 | Baseline recorded before optional local changes; no E2E | A2 |
 | A2 | [x] | DONE | INTEGRATION_TESTED | 2026-08-13T09:20:00+02:00 | 2026-08-13T09:36:00+02:00 | 2026-08-13T09:36:00+02:00 | __init__.py; tests/test_optional_audit.py; tests/test_ledger_migrations.py; tests/test_hermes_contract.py; PLAN.md | Aggregate-only profile-scoped local audit tool; fake-client/local-ledger tests; full no-E2E suite | 0 | 24 focused passed; 97 full passed; local commit `ca7a62de3` | A3 |
 | A3 | [x] | DONE | INTEGRATION_TESTED | 2026-08-13T09:40:48+02:00 | 2026-08-13T11:04:13+02:00 | 2026-08-13T11:04:13+02:00 | __init__.py; README.md; tests/test_optional_graph_points.py; tests/test_mutation_semantics.py; tests/test_p0_red_regressions.py; tests/test_public_release.py; PLAN.md | Raw uint32 backend-slot lookup replaced locally with short-lived opaque capability handles; store/prefetch/graph/hierarchy outputs avoid slot IDs; clusters expose only safe cardinalities; docs match nine-tool capability contract | focused fake-client/README suites plus full no-E2E suite and staged scope review | final pre-commit suite: 105 passed in 14.45s; commit `87d3eec2a` has seven plugin files and zero outside-plugin files | Base strict E2E remains blocked | A4 |
-| A4 | [>] | COMMIT_GATE | INTEGRATION_TESTED | 2026-08-13T11:04:13+02:00 | 2026-08-13T11:22:41+02:00 | - | __init__.py; README.md; tests/conftest.py; tests/test_optional_admin.py; tests/test_public_release.py; PLAN.md | Add only read-only admin count/digest/cache_stats; sanitize existing stats/status with field allowlists | fake-client admin/status/security plus README contracts; full no-E2E suite; AST allowlist audit | RED 3 expected failures; GREEN admin/status 32 passed; README/admin 5 passed; full 110 passed in 14.36s; AST/compile/diff-check passed | No implementation blocker; exact staged scope remains | Stage/recheck listed plugin paths, then local A4 commit only if staging gate is clean |
-| A5 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| A6 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| A7 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
-| A8 | [ ] | TODO | UNVERIFIED | - | - | - | - | - | - | - | - |
+| A4 | [x] | DONE | INTEGRATION_TESTED | 2026-08-13T11:04:13+02:00 | 2026-08-13T11:24:00+02:00 | 2026-08-13T11:24:00+02:00 | __init__.py; README.md; tests/conftest.py; tests/test_optional_admin.py; tests/test_public_release.py; PLAN.md | Added only read-only admin count/digest/cache_stats and strict field allowlists for existing stats/status | fake-client admin/status/security plus README contracts; full no-E2E suite; AST allowlist audit; staged scope review | RED 3 expected failures; GREEN admin/status 32 passed; README/admin 5 passed; full 110 passed in 14.36s; AST/compile/diff-check passed; local commit `3311931ef` contains six plugin files only | Base strict E2E remains blocked | A5 |
+| A5 | [>] | COMMIT_GATE | INTEGRATION_TESTED | 2026-08-13T11:29:56+02:00 | 2026-08-13T12:45:10+02:00 | - | __init__.py; plugin.yaml; README.md; tests/test_optional_geometry.py; tests/test_hermes_contract.py; tests/test_public_release.py; PLAN.md | Capability-only Lorentz 129D geometry tool; active predict_relation/predict_momentum use explicit Lorentz-to-Poincare conversion; trust_score is DIAGNOSTIC_UNAVAILABLE after measured upstream degeneracy | RED 4 failures; targeted 51 passed; final no-E2E 117 passed; schema/release/security 43 passed; public scan 0; compile/diff-check passed | Version 2.1.0; 10 unique schemas; 3447 serialized chars; raw IDs/vectors/mutations rejected; trust_score exits before get_points | Stage/recheck seven A5 paths then local commit |
+| A6 | [x] | DONE | INTEGRATION_TESTED | 2026-08-13T12:36:57+02:00 | 2026-08-13T12:45:10+02:00 | 2026-08-13T12:45:10+02:00 | PLUGIN_ROOT/tests; PLAN.md | Complete local suite after A5 | no-E2E full pytest | 117 passed in 16.70s; E2E runner explicitly ignored | Does not upgrade base E2E verdict | A7 |
+| A7 | [x] | DONE | STATIC_RELEASE_TESTED | 2026-08-13T12:39:49+02:00 | 2026-08-13T12:45:10+02:00 | 2026-08-13T12:45:10+02:00 | tests/test_hermes_contract.py; tests/test_public_release.py; PLAN.md | Schema budget and public-release scans | targeted pytest; direct serialized-schema measure; scoped scan | 43 passed; 10 unique schemas; 3447/4096 chars; max 587; public scan 0; compile/diff-check pass | A5 staged review |
+| A8 | [!] | BLOCKED | NOT_E2E_VERIFIED | 2026-08-13T12:45:10+02:00 | 2026-08-13T12:45:10+02:00 | - | events/reconciliation/batch: no files changed | Event streaming, reconciliation control, and batch mutation are independent future milestones | threat model plus authorized isolated E2E required | Not implemented by design; no unsafe model-facing mutation/streaming path added | Await separately scoped authorization |
 
 ### FAILURE AND DECISION LOG
 
@@ -1366,3 +1377,11 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-13T11:08:05+02:00 | A4 | INVENTORY | Read-only SDK/source audit found `count`, `get_digest`, and `get_cache_stats`; server cache endpoint is GET and cache struct has six structural fields. Existing plugin `stats` and `status` pass raw backend maps, which would violate the same allowlist rule. | A4 scope includes sanitizing existing model-facing stats/status as well as adding the three planned operations. No source, SDK/server, collection, credential, or E2E action occurred during inventory. | Write fake-client RED tests for all admin output allowlists and malformed responses. |
 | 2026-08-13T11:10:11+02:00 | A4 | TEST | Added fake-client admin allowlist/malformed/schema contracts and ran them before A4 implementation. | Expected RED: exit 1; three failures showed missing operations/schema and raw stats passthrough. A source check also found the actual DigestResponse state_hash is uint64, so the initially drafted string-hash test was corrected before implementation. | Add only read-only fake stubs, schemas, strict numeric allowlists, and handler branches; do not change SDK/server. |
 | 2026-08-13T11:18:14+02:00 | A4 | VERIFY | Targeted admin/status/security/Hermes-contract suite reran after implementation and an added status regression contract. | Exit 0; 32 passed in 1.53s. Admin `stats`, `count`, `digest`, `cache_stats`, and status stats use strict allowlists; malformed maps fail with MALFORMED_RESULT; no cache mutation operation was registered. Scoped whitespace is clean. | Add README contract for the verified admin operations, then rerun targeted and full no-E2E suite. |
+| 2026-08-13T11:29:56+02:00 | A5 | INVENTORY | Read-only source inventory confirmed 129D Lorentz points can be retrieved only after private slot resolution and that the SDK exposes an explicit Lorentz-to-Poincare bridge. | Plugin-only geometry design requires short-lived handles, validated hyperboloid points, scalar-only output, and no raw slot/vector return. | Write fake-client RED contracts before registering any tool. |
+| 2026-08-13T11:45:00+02:00 | A5 | TEST | Capability-only geometry contract ran before implementation. | Expected RED: exit 1 with four failures because the geometry schema/handler did not exist. Tests cover raw-ID rejection, forged handles, invalid Lorentz points, swallowed RPC errors, timeouts, and helper exceptions. | Implement only bounded local handler and fake-client tests. |
+| 2026-08-13T12:25:54+02:00 | A5 | DECISION | Source-equivalent numeric probes of the current upstream last-point-attractor trust formula returned constant 0.5 on three distinct valid trajectories. | A constant is not a trust score. `trust_score` remains discoverable but returns `DIAGNOSTIC_UNAVAILABLE` before point RPC; no pseudo-score is promoted. | Keep only active relation/momentum diagnostics and document the limitation. |
+| 2026-08-13T12:33:00+02:00 | A5 | VERIFY | Targeted capability/schema/release suite reran after the fail-closed trust-score correction. | Exit 0; 51 passed. Active geometry operations require verified Lorentz 129D plus current-session capability handles; raw identifiers, raw vectors, mutations, and helper-error leakage are rejected. | Run full no-E2E suite and release/schema checks. |
+| 2026-08-13T12:36:57+02:00 | A6 | VERIFY | Complete plugin suite ran with E2E runner explicitly ignored. | Exit 0; 116 passed in 15.19s. This is local fake-client integration evidence only and does not upgrade any E2E gate. | Measure schema budget and run public-release scan. |
+| 2026-08-13T12:42:21+02:00 | A7 | VERIFY | Schema/release/security suite and direct shipped-text scan ran locally. | Exit 0; 43 passed. Ten unique schemas serialize to 3447 characters (largest 587); public scan found 0 private-identifier/absolute-path matches; compile and whitespace passed. | Final full no-E2E suite after budget regression test. |
+| 2026-08-13T12:45:10+02:00 | A5/A6/A7 | VERIFY | Final local plugin suite reran with E2E runner explicitly ignored. | Exit 0; 117 passed in 16.70s. Capability geometry, 2.1.0 manifest/docs, ten-schema context budget, public scan, compile, and whitespace are green. | Perform plugin-only staged scope review and local commit. |
+| 2026-08-13T12:45:10+02:00 | A8 | BLOCKER | Events, operator reconciliation control, and batch mutation have separate streaming/mutation threat models and the plan requires an authorized isolated E2E gate for each. | No unsafe streaming, reconciliation, or batch tool is implemented or exposed. | Keep A8 blocked pending separately scoped authorization. |

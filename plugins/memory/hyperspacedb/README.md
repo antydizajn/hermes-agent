@@ -7,7 +7,8 @@ bounded memory tools, and keeps a local identity ledger so `add`, `replace`, and
 
 ## Status
 
-Version 0.2.0 is hardened at the source and unit-contract levels. A deployment
+Version 2.1.0 adds capability-scoped Lorentz geometry diagnostics to the
+hardened source and unit-contract surface. A deployment
 is not E2E verified until its operator runs an authorized add/replace/remove
 probe against a dedicated test collection.
 
@@ -140,7 +141,7 @@ The identity ledger is a local SQLite file containing plaintext memory content n
 
 ## Tools
 
-The plugin exposes exactly nine bounded tools:
+The plugin exposes exactly ten bounded tools:
 
 - `hyperspace_search`
 - `hyperspace_store`
@@ -151,11 +152,22 @@ The plugin exposes exactly nine bounded tools:
 - `hyperspace_clusters`
 - `hyperspace_search_advanced`
 - `hyperspace_admin`
+- `hyperspace_geometry`
 
 Search and store responses issue opaque, short-lived capability handles. Graph and
 hierarchy tools accept only handles minted by the same live provider profile,
 session, and collection; raw backend point IDs are neither accepted nor returned.
 Cluster output is limited to cluster cardinalities, not member identifiers.
+
+The geometry tool accepts only live capability handles and checks a verified
+Lorentz 129D collection before fetching points. It converts validated Lorentz
+hyperboloid points through the SDK Lorentz-to-Poincare bridge, then returns only
+bounded scalar summaries for `predict_relation` and `predict_momentum`.
+`trust_score` is intentionally `DIAGNOSTIC_UNAVAILABLE`: the current upstream
+formula is degenerate (it returns a constant 0.5 for trajectories ending at its
+own attractor). These are geometric diagnostics, not evidence that a memory is
+factually true or safe;
+raw vectors, point IDs, and predicted point content are never returned.
 
 The admin tool is read-only. Its allowed operations are `health`, `stats`,
 `count`, `digest`, and `cache_stats`. Every numeric response is field-by-field
