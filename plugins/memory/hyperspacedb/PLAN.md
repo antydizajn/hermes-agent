@@ -1410,3 +1410,17 @@ Append failures and operator decisions; never overwrite earlier entries.
 | 2026-08-14T11:45:38+02:00 | README-AUTHORS | Public README now ends with required authorship block. Skills (documentation-architect, mimicry-lab README_PUBLIC, packaging, public-web-publishing, hermes-memory-provider-plugin) require mimicry-lab pass + that block. | lint_copy README_PUBLIC PASS; test_readme_has_required_authorship_block; full no-E2E 137 passed. | |
 | 2026-08-14T12:05:00+02:00 | AUDIT-CLAIM-FIX | Independent check of external GPT P1s. CONFIRMED: Lorentz infer was t>0 only; no on_session_switch; README user path wrong; HMAC schema not secret. FIXED those plus agent_context write gate, save_config hermes_home, deferred ledger close. REJECTED: never-infer-at-all (would kill schema-less gniewka_omniscient). CI not added. |
 | 2026-08-14T12:13:00+02:00 | V2.2.0 | Bump to 2.2.0. Public CI against pinned Hermes 56a41715 + pytest + user-install discovery smoke. |
+
+### 2026-08-14T21:18:00+02:00 E2E-WRITE-VERIFIED
+- target: hsdb_e2e_464993b1f8cfccdb (existing, target_created=false)
+- command: python3 tests/run_test_collection_e2e.py
+- result: {ok:true, payload_search_verified:true, add_verified:true, replace_verified:true, remove_verified:true, worker_clean:true, fixtures_seeded:2}
+- production gniewka_omniscient untouched by runner (script never lists other collections for mutation)
+- first attempt failed (API key not loaded); second attempt PASS after loading HYPERSPACE_API_KEY from ~/.hermes/.env
+- verification level: E2E TESTED (dedicated collection only)
+
+### 2026-08-14T21:33:00+02:00 WRITE-DEADLINE-AND-HANDLE-LOCK
+- `_write_rpc_timeout`: 4s + 1s/400 chars, cap 300s; applied to vectorize+insert
+- `_handle_op_lock` serializes graph/hierarchy/geometry in handle_tool_call
+- tests/test_polish_deadlines_and_locks.py 3/3
+- version 2.2.1
