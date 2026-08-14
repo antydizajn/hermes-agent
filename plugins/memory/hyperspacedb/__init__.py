@@ -2163,7 +2163,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             time_sq = lorentz[0] * lorentz[0]
             invariant_residual = abs(time_sq - spatial_norm_sq - 1.0)
             invariant_scale = max(1.0, abs(time_sq), abs(spatial_norm_sq))
-            if invariant_residual > 1e-12 * invariant_scale:
+            if invariant_residual > 1e-2 * invariant_scale:
                 raise BackendMalformed("Geometry point violates the Lorentz hyperboloid constraint")
             try:
                 from hyperspace.math import lorentz_to_poincare

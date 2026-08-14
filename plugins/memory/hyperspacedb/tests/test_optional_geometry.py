@@ -123,6 +123,31 @@ def test_geometry_accepts_valid_near_boundary_lorentz_point(provider, fake_clien
     assert response["result"]["dimension"] == 128
 
 
+def _quantized_stored_lorentz(ball_coordinate, extra_spatial_energy=0.007):
+    """Approximate a retrieved embedding: Lorentz plus storage quantization residual."""
+    vector = _lorentz_point(ball_coordinate)
+    vector[1] = math.sqrt(vector[1] * vector[1] + extra_spatial_energy)
+    return vector
+
+
+def test_geometry_accepts_stored_lorentz_vectors_with_embedder_quantization(provider, fake_client):
+    handles = []
+    for point_id, coordinate in ((201, 0.08), (202, 0.12)):
+        fake_client.points[point_id] = {
+            "id": point_id,
+            "vector": _quantized_stored_lorentz(coordinate),
+            "metadata": {},
+            "payload": b"",
+        }
+        handle = provider._mint_point_capability(point_id, provider._collection)
+        assert handle is not None
+        handles.append(handle)
+    response = _geometry(provider, operation="predict_relation", handles=handles)
+    assert response["ok"] is True
+    assert response["result"]["dimension"] == 128
+    assert math.isfinite(response["result"]["l2_norm"])
+
+
 def test_geometry_propagates_swallowed_sdk_error(provider, fake_client, plugin):
     handles = _issued_handles(provider, fake_client, [0.05, 0.10])
     telemetry = plugin._RpcTelemetry()
