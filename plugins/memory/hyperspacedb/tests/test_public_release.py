@@ -10,13 +10,55 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT_EXTENSIONS = {".py", ".md", ".yaml", ".yml", ".toml", ".txt"}
+# Workflow-ledger names excluded from any release (mirrors .gitattributes export-ignore).
+_EXPORT_IGNORED_NAMES = {
+    "PLAN.md", "PLAN-LUNA.md", "HANDOFF.md", "HANDOFF-TERRA-2.md",
+    "AUDIT.md", "AUDIT-CLEAN-20260813.md", "LUNA-AUDIT-REPORT.md",
+    "PROMPT_ITERATIONS.md",
+}
+_NON_SHIPPED_DIRS = {"state", "_deferred_events", "__pycache__"}
+
+
+def _git_repository_root() -> "Path | None":
+    """Return the enclosing Git repository only when it actually tracks this plugin.
+
+    A `git rev-parse --show-toplevel` returns the nearest ancestor repository even
+    when the plugin is merely nested inside an unrelated repo (e.g. an extracted
+    release artifact under a larger tree). The layout-aware checks only apply when
+    the plugin root itself is tracked there, so we confirm with `git ls-files
+    --error-unmatch` against `ROOT/__init__.py`. Returns None when there is no
+    such repository.
+    """
+    try:
+        output = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], cwd=ROOT, text=True, stderr=subprocess.DEVNULL
+        )
+    except subprocess.CalledProcessError:
+        return None
+    repo = Path(output.strip()).resolve()
+    probe = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", "memory/hyperspacedb/__init__.py"],
+        cwd=repo, check=False, capture_output=True,
+    )
+    # Accept either the exact plugin path or a generic probe; the meaningful
+    # signal is that "memory/hyperspacedb/__init__.py" is tracked at repo root.
+    if probe.returncode != 0:
+        # Some layouts track the plugin at plugins/memory/hyperspacedb; probe both.
+        probe_alt = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "--",
+             "plugins/memory/hyperspacedb/__init__.py"],
+            cwd=repo, check=False, capture_output=True,
+        )
+        if probe_alt.returncode != 0:
+            return None
+    return repo
 
 
 def _repository_root() -> Path:
-    output = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"], cwd=ROOT, text=True
-    )
-    return Path(output.strip()).resolve()
+    repository = _git_repository_root()
+    if repository is None:
+        pytest.skip("plugin root is not tracked in an enclosing Git repository")
+    return repository
 
 
 def _plugin_prefix(repository: Path) -> str:
@@ -26,21 +68,29 @@ def _plugin_prefix(repository: Path) -> str:
         raise AssertionError("plugin root must be inside its Git repository") from exc
 
 
-def _tracked_plugin_paths():
-    repository = _repository_root()
-    prefix = _plugin_prefix(repository)
-    output = subprocess.check_output(
-        ["git", "ls-files", "--", prefix], cwd=repository, text=True
-    )
-    for tracked in output.splitlines():
-        if not tracked:
+def _shipped_text_paths(all_paths, text_extensions=TEXT_EXTENSIONS):
+    """Yield ROOT files that would actually ship in a release, regardless of git.
+
+    Walks the real directory tree, skipping runtime state, deferred specs, and
+    bytecode caches. Names in the export-ignore ledger set are excluded so the
+    OPSEC scans never read private operational documents.
+    """
+    for candidate in sorted(all_paths):
+        relative_parts = candidate.relative_to(ROOT).parts
+        if any(part in _NON_SHIPPED_DIRS for part in relative_parts):
             continue
-        relative = Path(tracked).relative_to(prefix) if prefix != "." else Path(tracked)
-        yield ROOT / relative
+        if candidate.name in _EXPORT_IGNORED_NAMES:
+            continue
+        if candidate.suffix in text_extensions and candidate.is_file():
+            yield candidate
 
 
 def _is_export_ignored(path: Path) -> bool:
-    repository = _repository_root()
+    if path.name in _EXPORT_IGNORED_NAMES:
+        return True
+    repository = _git_repository_root()
+    if repository is None:
+        return False
     relative = path.resolve().relative_to(repository).as_posix()
     output = subprocess.check_output(
         ["git", "check-attr", "export-ignore", "--", relative],
@@ -51,9 +101,10 @@ def _is_export_ignored(path: Path) -> bool:
 
 
 def shipped_text():
-    for path in _tracked_plugin_paths():
-        if path.suffix not in TEXT_EXTENSIONS or _is_export_ignored(path):
-            continue
+    # Real on-disk release files (git-independent) so the OPSEC scans always
+    # run against the actual shipped surface, even in a standalone artifact.
+    all_paths = sorted(p for p in ROOT.rglob("*"))
+    for path in _shipped_text_paths(all_paths):
         yield path, path.read_text(encoding="utf-8")
 
 
