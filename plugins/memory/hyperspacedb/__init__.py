@@ -1183,10 +1183,54 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
             dimension = component.get("full_dimension", component.get("dimension"))
         return metric, dimension
 
+    def _infer_contract_from_vector(self, vector: Any) -> Tuple[str, Any]:
+        if not isinstance(vector, (list, tuple)) or not vector:
+            return "", None
+        if any(
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            for value in vector
+        ):
+            return "", None
+        dimension = len(vector)
+        if dimension == 129 and float(vector[0]) > 0.0:
+            return "lorentz", dimension
+        return "", dimension
+
+    def _contract_from_stored_points(self) -> Tuple[str, Any]:
+        try:
+            rows = self._call("scroll", 1, 0, collection=self._collection)
+        except ProviderError:
+            return "", None
+        if not isinstance(rows, list) or not rows or not isinstance(rows[0], dict):
+            return "", None
+        metric, dimension = self._infer_contract_from_vector(rows[0].get("vector"))
+        if metric and dimension not in (None, ""):
+            return metric, dimension
+        point_id = rows[0].get("id")
+        if isinstance(point_id, bool) or not isinstance(point_id, int):
+            return metric, dimension
+        try:
+            fetched = self._call("get_points", [point_id], collection=self._collection)
+        except ProviderError:
+            return metric, dimension
+        if not isinstance(fetched, list) or not fetched or not isinstance(fetched[0], dict):
+            return metric, dimension
+        inferred_metric, inferred_dimension = self._infer_contract_from_vector(fetched[0].get("vector"))
+        if not metric:
+            metric = inferred_metric
+        if dimension in (None, ""):
+            dimension = inferred_dimension
+        return metric, dimension
+
     def _verify_collection_contract(self, stats: Any) -> None:
         observed_metric, observed_dimension = self._collection_contract_fields(stats)
         if not observed_metric or observed_dimension in (None, ""):
-            collections = self._call("list_collections")
+            try:
+                collections = self._call("list_collections")
+            except ProviderError:
+                collections = None
             if isinstance(collections, list):
                 for item in collections:
                     if isinstance(item, dict) and str(item.get("name") or "") == self._collection:
@@ -1196,6 +1240,12 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                         if observed_dimension in (None, ""):
                             observed_dimension = fallback_dimension
                         break
+        if not observed_metric or observed_dimension in (None, ""):
+            inferred_metric, inferred_dimension = self._contract_from_stored_points()
+            if not observed_metric:
+                observed_metric = inferred_metric
+            if observed_dimension in (None, ""):
+                observed_dimension = inferred_dimension
         if not observed_metric:
             raise BackendMalformed("Collection metric could not be verified")
         if observed_metric != self._configured_metric:
