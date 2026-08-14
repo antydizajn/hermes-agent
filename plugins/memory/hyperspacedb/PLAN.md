@@ -1424,3 +1424,9 @@ Append failures and operator decisions; never overwrite earlier entries.
 - `_handle_op_lock` serializes graph/hierarchy/geometry in handle_tool_call
 - tests/test_polish_deadlines_and_locks.py 3/3
 - version 2.2.1
+
+### 2026-08-14T22:20:00+02:00 THREAD-LOCAL-RPC-DEADLINE
+- P1: _DeadlineStubProxy reads thread-local deadline; stubs wrapped once
+- P2: test_handle_op_lock_keeps_graph_backend_calls_exclusive (max_active==1)
+- P3: README Write-RPC paragraph deduped
+- version 2.2.2
