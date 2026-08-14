@@ -1511,6 +1511,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
                 "node_ids": "node_handles",
                 "parent_ids": "parent_handles",
                 "child_ids": "child_handles",
+                "neighbors": "neighbor_handles",
             }
             if normalized_key in id_key_to_handle_key:
                 handle = self._mint_point_capability(item, collection)
@@ -2182,6 +2183,45 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         if self._configured_metric != "lorentz" or self._observed_dimension != 129:
             raise ConfigurationError("Geometry diagnostics require a verified Lorentz 129D collection")
 
+
+    def _try_lorentz_sheet(self, vector: Any) -> Optional[List[float]]:
+        if not isinstance(vector, (list, tuple)) or len(vector) != 129:
+            return None
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) for value in vector):
+            return None
+        lorentz = [float(value) for value in vector]
+        if lorentz[0] <= 0.0:
+            return None
+        spatial_norm_sq = math.fsum(value * value for value in lorentz[1:])
+        time_sq = lorentz[0] * lorentz[0]
+        minkowski = time_sq - spatial_norm_sq
+        invariant_scale = max(1.0, abs(time_sq), abs(spatial_norm_sq))
+        residual = abs(minkowski - 1.0)
+        if residual > 1e-2 * invariant_scale:
+            if minkowski <= 1e-6 * invariant_scale:
+                return None
+            sheet_scale = math.sqrt(minkowski)
+            lorentz = [value / sheet_scale for value in lorentz]
+            if lorentz[0] <= 0.0:
+                return None
+        return lorentz
+
+    def _lorentz_vector_for_geometry(self, point: Any) -> List[float]:
+        stored = self._try_lorentz_sheet(point.get("vector") if isinstance(point, dict) else None)
+        if stored is not None:
+            return stored
+        content = _extract_content(point).strip() if isinstance(point, dict) else ""
+        if not content:
+            raise BackendMalformed("Geometry point is missing a Lorentz 129D vector")
+        try:
+            rebuilt = self._call("vectorize", content, metric=self._configured_metric)
+        except ProviderError as error:
+            raise BackendMalformed("Geometry point could not be re-vectorized") from error
+        rebuilt_sheet = self._try_lorentz_sheet(rebuilt)
+        if rebuilt_sheet is None:
+            raise BackendMalformed("Geometry point is not Lorentz-like")
+        return rebuilt_sheet
+
     def _geometry_points(self, handles: Any) -> List[List[float]]:
         try:
             point_ids = self._resolve_point_capabilities(handles, self._collection)
@@ -2201,20 +2241,7 @@ class HyperspaceDBMemoryProvider(MemoryProvider):
         poincare_vectors: List[List[float]] = []
         for point_id in point_ids:
             point = by_id.get(point_id)
-            vector = point.get("vector") if isinstance(point, dict) else None
-            if not isinstance(vector, (list, tuple)) or len(vector) != 129:
-                raise BackendMalformed("Geometry point is missing a Lorentz 129D vector")
-            if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) for value in vector):
-                raise BackendMalformed("Geometry point contains a non-finite vector value")
-            lorentz = [float(value) for value in vector]
-            if lorentz[0] <= 0.0:
-                raise BackendMalformed("Geometry point is not on the positive Lorentz sheet")
-            spatial_norm_sq = math.fsum(value * value for value in lorentz[1:])
-            time_sq = lorentz[0] * lorentz[0]
-            invariant_residual = abs(time_sq - spatial_norm_sq - 1.0)
-            invariant_scale = max(1.0, abs(time_sq), abs(spatial_norm_sq))
-            if invariant_residual > 1e-2 * invariant_scale:
-                raise BackendMalformed("Geometry point violates the Lorentz hyperboloid constraint")
+            lorentz = self._lorentz_vector_for_geometry(point)
             try:
                 from hyperspace.math import lorentz_to_poincare
                 poincare = lorentz_to_poincare(lorentz)

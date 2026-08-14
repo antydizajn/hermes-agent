@@ -190,3 +190,58 @@ def test_geometry_converts_math_helper_exceptions_to_redacted_json_error(provide
     assert response["ok"] is False
     assert response["error"]["code"] == "MALFORMED_RESULT"
     assert "private helper failure" not in response["error"]["message"]
+
+
+def test_geometry_projects_quantized_off_sheet_lorentz_vectors(provider, fake_client):
+    exact = _lorentz_point(0.2)
+    drifted = list(exact)
+    drifted[1] = math.sqrt(drifted[1] * drifted[1] + 0.08)
+    handles = []
+    for point_id, vector in ((301, drifted), (302, _lorentz_point(0.25))):
+        fake_client.points[point_id] = {
+            "id": point_id,
+            "vector": vector,
+            "metadata": {},
+            "payload": b"",
+        }
+        handle = provider._mint_point_capability(point_id, provider._collection)
+        assert handle is not None
+        handles.append(handle)
+    response = _geometry(provider, operation="predict_relation", handles=handles)
+    assert response["ok"] is True
+    assert response["result"]["dimension"] == 128
+
+
+def test_geometry_still_rejects_spacelike_vectors(provider, fake_client):
+    handles = []
+    for point_id, vector in ((311, [0.1] + [1.0] * 128), (312, _lorentz_point(0.1))):
+        fake_client.points[point_id] = {
+            "id": point_id,
+            "vector": vector,
+            "metadata": {},
+            "payload": b"",
+        }
+        handle = provider._mint_point_capability(point_id, provider._collection)
+        assert handle is not None
+        handles.append(handle)
+    response = _geometry(provider, operation="predict_relation", handles=handles)
+    assert response["ok"] is False
+    assert response["error"]["code"] == "MALFORMED_RESULT"
+
+
+def test_geometry_revectorizes_when_stored_point_is_not_lorentz(provider, fake_client):
+    handles = []
+    for point_id, coordinate in ((401, 0.08), (402, 0.12)):
+        fake_client.points[point_id] = {
+            "id": point_id,
+            "vector": [1e20] + [1e20] * 128,
+            "metadata": {"_content": "revectorize geometry %s" % point_id},
+            "payload": b"",
+        }
+        handle = provider._mint_point_capability(point_id, provider._collection)
+        assert handle is not None
+        handles.append(handle)
+    response = _geometry(provider, operation="predict_relation", handles=handles)
+    assert response["ok"] is True
+    assert response["result"]["dimension"] == 128
+    assert any(call[0] == "vectorize" for call in fake_client.calls)
