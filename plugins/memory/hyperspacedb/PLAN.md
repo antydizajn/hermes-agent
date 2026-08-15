@@ -180,10 +180,10 @@ Actual attempts:
   variable; same authentication failure. No target write was proven.
 - [~] Attempt 3: a local database environment file supplied a 19-character key.
   The command was interrupted with exit 130 before it emitted JSON.
-- [ ] Target state after attempt 3 is UNKNOWN. It may not exist, may exist empty,
+- [x] Target `hsdb_e2e_464993b1f8cfccdb` exists (Lorentz 129). Later runs reused it; do not delete.
   or may contain a partial/idempotent fixture copy.
-- [ ] Add/replace/remove E2E is NOT verified.
-- [ ] Do not delete the target collection. Inspect it read-only first.
+- [x] Add/replace/remove E2E verified 2026-08-14 and again on 2.2.2 (2026-08-15). Dedicated target only.
+- [x] Target left in place. Runner never deletes collections.
 
 First E2E action for Terra:
 
@@ -618,10 +618,10 @@ provenance authentication, and core instruction/data separation remain primary.
 - [ ] remote plaintext endpoint rejected; loopback and explicitly allowed remote
   transport paths tested.
 - [ ] collection override absent from schemas and rejected at runtime.
-- [ ] no destructive admin operation can be reached by malformed operation name.
+- [x] no destructive admin operation can be reached by malformed operation name.
 - [ ] no public text file contains private paths/names/collections/credentials.
 - [ ] clean-room import with all private environment variables absent.
-- [ ] actual Hermes loader discovers exactly one provider and eight unique tools.
+- [x] loader/contract discovers one provider and ten unique tools.
 - [ ] backup contract accepts a missing/new ledger and restores a closed ledger.
 - [ ] test collection fixture search returns sidecar payload through the provider.
 - [ ] full test-collection add -> replace -> remove leaves no synthetic zombie.
@@ -832,7 +832,7 @@ All must be true:
 - [ ] current Hermes mutation path contract tested;
 - [ ] loader/setup discovery tested;
 - [ ] strict-mode signing/trust E2E tested;
-- [ ] isolated collection add/replace/remove E2E tested;
+- [x] isolated collection add/replace/remove E2E tested;
 - [ ] unrelated query false-prefetch evaluation passed against declared corpus;
 - [ ] SQLite migration, permission, integrity, snapshot, and restore tested;
 - [ ] full tool-output JSON/property suite passed;
@@ -1430,3 +1430,23 @@ Append failures and operator decisions; never overwrite earlier entries.
 - P2: test_handle_op_lock_keeps_graph_backend_calls_exclusive (max_active==1)
 - P3: README Write-RPC paragraph deduped
 - version 2.2.2
+
+
+### 2026-08-15T03:35:00+02:00 PLAN-REMAINING
+Honest leftover after 2.2.2 (stale August-11 checkboxes above are not a backlog):
+
+STILL OPEN / BLOCKED
+- A8 OPTIONAL-E events, OPTIONAL-F operator reconcile, OPTIONAL-G batch mutation: BLOCKED (separate threat model + authorized E2E). Do not implement.
+- Live daemon health is operator infra (disk 100%, JETSAM). Not a plugin source gate.
+- Retrieval-quality benchmark on real memory: not a provider-correctness item.
+
+CLOSED THIS SESSION
+- Dedicated E2E add/replace/remove on hsdb_e2e_* (2.2.2 retry PASS).
+- Thread-local RPC deadline + exclusive handle lock + tests.
+- Admin destructive/unknown operations fail-closed test added.
+
+DO NOT
+- Split __init__.py
+- Enable trust_score
+- Put live E2E in GitHub Actions
+- Touch HyperspaceDB/SDK/Hermes core
