@@ -1455,3 +1455,32 @@ DO NOT
 - search splices active ledger rows whose content contains the query (>=4 chars) when the vector index misses
 - tests/test_ledger_read_your_writes.py
 - version 2.3.0
+
+
+### 2026-08-15T09:36:00+02:00 STATE
+Plugin version: 2.3.0
+Public HEAD will move after this commit; tags already exist: v2.2.0 v2.2.1 v2.2.2 v2.3.0
+GitHub Releases previously only published v2.2.0 (Latest). This cycle publishes 2.2.1, 2.2.2, 2.3.0.
+
+DONE
+- 10 tools, fail-closed mutations, HMAC, capability handles
+- thread-local RPC deadline + handle lock
+- dedicated E2E add/replace/remove on hsdb_e2e_* (2.2.2)
+- production store after disk recovered (count 407789->407790)
+- ledger read-your-writes when vector miss (query >=4 chars)
+- ledger fallback hits mint capability handles
+- standard search sends hybrid_query/hybrid_alpha=0.7
+- admin vacuum/delete/rebuild rejected at runtime
+- local no-E2E suite: 152 passed, 2 skipped
+
+BLOCKED / NOT PLUGIN
+- A8 OPTIONAL-E/F/G (events, operator reconcile, batch mutation)
+- trust_score (degenerate formula)
+- live E2E in GitHub Actions (no daemon)
+- HyperspaceDB JETSAM / disk 100% (infra)
+
+DO NOT
+- split __init__.py
+- enable trust_score
+- touch Hermes core / SDK / server
+- delete the e2e collection
