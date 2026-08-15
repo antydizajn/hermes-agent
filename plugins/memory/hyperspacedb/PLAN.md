@@ -1450,3 +1450,8 @@ DO NOT
 - Enable trust_score
 - Put live E2E in GitHub Actions
 - Touch HyperspaceDB/SDK/Hermes core
+
+### 2026-08-15T04:32:00+02:00 LEDGER-READ-YOUR-WRITES
+- search splices active ledger rows whose content contains the query (>=4 chars) when the vector index misses
+- tests/test_ledger_read_your_writes.py
+- version 2.3.0
