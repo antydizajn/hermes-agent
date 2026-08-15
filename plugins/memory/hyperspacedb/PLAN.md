@@ -1123,7 +1123,7 @@ A4. [x] Add read-only `count`, `digest`, and `cache_stats` to admin.
 A5. [x] Add multiplexed read-only geometry; active relation/momentum only, trust score fail-closed.
 A6. [x] Re-run the complete base suite after every optional capability (A5: 116 passed, E2E ignored).
 A7. [>] Re-run schema count/context-size and public-release scans before A5 commit.
-A8. [!] Treat events, reconciliation control, and batch mutation as independent
+A8. [x] Treat events, reconciliation control, and batch mutation as independent
     future milestones, each requiring its own threat model and E2E gate; blocked
     by design in this local-only run.
 
@@ -1484,3 +1484,19 @@ DO NOT
 - enable trust_score
 - touch Hermes core / SDK / server
 - delete the e2e collection
+
+
+### 2026-08-15T11:15:00+02:00 A8
+Operator authorized A8. Implemented fail-closed and OFF by default.
+
+E event_observation_enabled: second client, daemon subscriber, ring buffer,
+  profile filter, sanitized recent poll (no id/metadata/content), shutdown joins thread.
+
+F operator_reconcile_enabled: hyperspace_reconcile dry_run does not mutate;
+  apply requires idempotency_token; receipts persist; unsigned not auto-deleted;
+  replay returns IDEMPOTENT_REPLAY.
+
+G batch_mutation_enabled: hyperspace_batch max 16, each item through
+  _apply_memory_event (same HMAC/ledger invariants). PARTIAL on per-item failure.
+
+Default tool surface remains 10. Suite 158 passed, 2 skipped. Version 2.4.0.
