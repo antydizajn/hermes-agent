@@ -10,14 +10,14 @@ Relacja: recenzujesz cudzy publiczny plugin. Autorzy moga sie mylic. README moze
 </who>
 
 <objective>
-Zrob recenzje tagu v2.4.0 publicznego pluginu Hermes MemoryProvider opartego o HyperspaceDB. Werdykt ma dac Michałowi decyzje: czy wolno tego uzyc jako pamieci agenta, pod jakimi warunkami, i ktora dziura jest prawdziwa a ktora jest teatrzykiem.
+Zrob recenzje tagu v2.4.1 publicznego pluginu Hermes MemoryProvider opartego o HyperspaceDB. Werdykt ma dac Michałowi decyzje: czy wolno tego uzyc jako pamieci agenta, pod jakimi warunkami, i ktora dziura jest prawdziwa a ktora jest teatrzykiem.
 </objective>
 
 <pin>
 Repo: https://github.com/antydizajn/hermes-hyperspacedb-provider
-Tag: v2.4.0
-Commit: 5767b68
-plugin.yaml: version 2.4.0
+Tag: v2.4.1
+Commit: d45c707
+plugin.yaml: version 2.4.1
 Zaleznosc: hyperspacedb>=3.1.3,<4
 Domyslna powierzchnia: 10 narzedzi.
 Opcje A8 wylaczone, dopoki config ich nie wlaczy: event_observation_enabled, operator_reconcile_enabled, batch_mutation_enabled.
@@ -46,7 +46,7 @@ Raport, ktory Michal moze odsluchac od poczatku do konca bez gubienia struktury.
 </target_state>
 
 <how_to_work>
-1. Wez dokladnie tag v2.4.0. Jesli masz tylko main, sprawdz czy HEAD == 5767b68. Jesli nie, recenzujesz zly obiekt i musisz to napisac w zdaniu pierwszym.
+1. Wez dokladnie tag v2.4.1. Jesli masz tylko main, sprawdz czy HEAD == d45c707. Jesli nie, recenzujesz zly obiekt i musisz to napisac w zdaniu pierwszym.
 2. Przeczytaj plugin.yaml, README, get_tool_schemas, handle_tool_call, on_memory_write, ledger, search, store, shutdown, testy w tests/.
 3. Odpal suite jezeli mozesz: pytest tests --ignore=tests/run_test_collection_e2e.py. Zapisz liczbe passed/failed/skipped. Jesli nie mozesz odpalic, napisz BRAK DANYCH, nie zgaduj ze "pewnie przechodzi".
 4. Kazde P0/P1 musi miec sciezke: plik plus symbol plus zachowanie plus test, ktory by to zlapal, albo jawne "testu nie ma".
